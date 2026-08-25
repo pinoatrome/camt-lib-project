@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.052.001.02">
+  <BkToCstmrAcctRpt>
+    <GrpHdr>
+      <MsgId>MSG-RPT-0001</MsgId>
+      <CreDtTm>2026-01-04T12:00:00</CreDtTm>
+    </GrpHdr>
+    <Rpt>
+      <Id>RPT-0001</Id>
+      <CreDtTm>2026-01-04T12:00:00</CreDtTm>
+      <Acct>
+        <Id>
+          <IBAN>IT60X0542811101000000123456</IBAN>
+        </Id>
+        <Ccy>EUR</Ccy>
+      </Acct>
+      <Bal>
+        <Tp>
+          <CdOrPrtry>
+            <Cd>ITBD</Cd>
+          </CdOrPrtry>
+        </Tp>
+        <Amt Ccy="EUR">1120.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Dt>
+          <DtTm>2026-01-04T12:00:00</DtTm>
+        </Dt>
+      </Bal>
+      <Ntry>
+        <Amt Ccy="EUR">120.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Sts>PDNG</Sts>
+        <BookgDt>
+          <DtTm>2026-01-04T11:30:00</DtTm>
+        </BookgDt>
+        <BkTxCd>
+          <Prtry>
+            <Cd>PROP-CODE-1</Cd>
+          </Prtry>
+        </BkTxCd>
+      </Ntry>
+    </Rpt>
+  </BkToCstmrAcctRpt>
+</Document>

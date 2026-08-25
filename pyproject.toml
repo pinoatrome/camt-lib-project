@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "camt"
+version = "0.1.0"
+description = "Parse and generate ISO 20022 CAMT (camt.052/053/054) bank statement XML"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "lxml>=5.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["camt*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

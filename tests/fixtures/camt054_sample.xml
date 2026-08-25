@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.054.001.02">
+  <BkToCstmrDbtCdtNtfctn>
+    <GrpHdr>
+      <MsgId>MSG-NTFY-0001</MsgId>
+      <CreDtTm>2026-01-04T09:00:00</CreDtTm>
+    </GrpHdr>
+    <Ntfctn>
+      <Id>NTFY-0001</Id>
+      <CreDtTm>2026-01-04T09:00:00</CreDtTm>
+      <Acct>
+        <Id>
+          <IBAN>IT60X0542811101000000123456</IBAN>
+        </Id>
+        <Ccy>EUR</Ccy>
+      </Acct>
+      <Ntry>
+        <AcctSvcrRef>SVCR-REF-9</AcctSvcrRef>
+        <Amt Ccy="EUR">75.25</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Sts>BOOK</Sts>
+        <BookgDt>
+          <Dt>2026-01-04</Dt>
+        </BookgDt>
+        <NtryDtls>
+          <TxDtls>
+            <Refs>
+              <EndToEndId>E2E-9</EndToEndId>
+            </Refs>
+            <Amt Ccy="EUR">75.25</Amt>
+            <CdtDbtInd>CRDT</CdtDbtInd>
+            <RltdPties>
+              <Dbtr>
+                <Nm>Some Payer</Nm>
+              </Dbtr>
+            </RltdPties>
+            <RmtInf>
+              <Ustrd>Subscription renewal</Ustrd>
+            </RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+    </Ntfctn>
+  </BkToCstmrDbtCdtNtfctn>
+</Document>
