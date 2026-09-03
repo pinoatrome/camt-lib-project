@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.004.001.08">
+  <RtrAcct>
+    <MsgHdr>
+      <MsgId>RESP-0001</MsgId>
+      <CreDtTm>2026-09-02T10:00:00</CreDtTm>
+      <OrgnlBizInstr>
+        <MsgId>REQ-0001</MsgId>
+      </OrgnlBizInstr>
+    </MsgHdr>
+    <RptOrErr>
+      <AcctRpt>
+        <AcctId>
+          <Othr>
+            <Id>DEAN-IT-0001-ALPHA</Id>
+          </Othr>
+        </AcctId>
+        <AcctOrErr>
+          <Acct>
+            <Id>
+              <IBAN>IT60X0542811101000000123456</IBAN>
+            </Id>
+            <Ccy>EUR</Ccy>
+            <Sts>
+              <Cd>ENABLED</Cd>
+            </Sts>
+            <Tp>
+              <Prtry>PAYM</Prtry>
+            </Tp>
+            <Ownr>
+              <FinInstnId>
+                <BICFI>PSPXITMMXXX</BICFI>
+                <Nm>Alpha PSP</Nm>
+              </FinInstnId>
+            </Ownr>
+            <Svcr>
+              <FinInstnId>
+                <Nm>DESP Servicer</Nm>
+              </FinInstnId>
+            </Svcr>
+            <HldgBal>
+              <Tp>
+                <CdOrPrtry>
+                  <Cd>CLBD</Cd>
+                </CdOrPrtry>
+              </Tp>
+              <Amt Ccy="EUR">1250.50</Amt>
+              <Dt>
+                <Dt>2026-09-01</Dt>
+              </Dt>
+            </HldgBal>
+            <HldgBal>
+              <Tp>
+                <CdOrPrtry>
+                  <Prtry>AVLB</Prtry>
+                </CdOrPrtry>
+              </Tp>
+              <Amt Ccy="EUR">900.00</Amt>
+              <Dt>
+                <DtTm>2026-09-02T09:00:00</DtTm>
+              </Dt>
+            </HldgBal>
+            <LmtBal>
+              <Amt Ccy="EUR">5000.00</Amt>
+            </LmtBal>
+          </Acct>
+        </AcctOrErr>
+      </AcctRpt>
+    </RptOrErr>
+  </RtrAcct>
+</Document>
