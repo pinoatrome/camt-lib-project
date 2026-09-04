@@ -80,6 +80,21 @@ def _parse_datetime(value: str | None) -> datetime | None:
         raise CamtParseError(f"Invalid datetime: {value!r}") from exc
 
 
+def _parse_int(value: str | None) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except ValueError as exc:
+        raise CamtParseError(f"Invalid integer: {value!r}") from exc
+
+
+def _parse_bool(value: str | None) -> bool | None:
+    if value is None:
+        return None
+    return value.strip().lower() == "true"
+
+
 def _parse_date_or_datetime(elem: etree._Element | None) -> date | datetime | None:
     """Handle <Dt><Dt>..</Dt></Dt> and <Dt><DtTm>..</DtTm></Dt> shapes."""
     if elem is None:
@@ -285,6 +300,10 @@ def parse_bytes(data: bytes) -> Document:
     message_id = _text(_child(grp_hdr, "MsgId")) or ""
     creation_dt = _parse_datetime(_text(_child(grp_hdr, "CreDtTm")))
 
+    msg_pgntn = _child(grp_hdr, "MsgPgntn")
+    page_number = _parse_int(_text(_child(msg_pgntn, "PgNb")))
+    last_page = _parse_bool(_text(_child(msg_pgntn, "LastPgInd")))
+
     statements = [
         _parse_statement(elem) for elem in _children(wrapper, msg_type.entry_group_tag)
     ]
@@ -294,6 +313,8 @@ def parse_bytes(data: bytes) -> Document:
         message_id=message_id,
         creation_datetime=creation_dt,
         statements=statements,
+        page_number=page_number,
+        last_page=last_page,
     )
 
 
@@ -307,3 +328,75 @@ def parse_file(source: str | os.PathLike[str] | IO[bytes]) -> Document:
         return parse_bytes(source.read())
     with open(source, "rb") as f:
         return parse_bytes(f.read())
+
+
+def merge_paginated_documents(documents: list[Document]) -> Document:
+    """Merge the pages of a paginated CAMT delivery (see `GrpHdr/MsgPgntn`) into
+    one logical `Document`, concatenating each statement's entries in page order.
+
+    Large deliveries (e.g. an end-of-day camt.053 over 32 MB) are split by the
+    sender into multiple `<Document>` messages, each covering the same
+    statement(s) but only a slice of their entries; `PgNb`/`LastPgInd` say
+    where each page sits in that sequence. This reassembles those pages —
+    matching statements across pages by `Statement.id` — back into the single
+    statement a non-paginated delivery would have produced.
+
+    Raises `CamtParseError` if the pages don't form a complete, contiguous,
+    single-message-type set with exactly one final page.
+    """
+    if not documents:
+        raise CamtParseError("No documents to merge")
+
+    message_types = {doc.message_type for doc in documents}
+    if len(message_types) > 1:
+        raise CamtParseError(f"Cannot merge documents of different message types: {message_types}")
+
+    if any(doc.page_number is None for doc in documents):
+        raise CamtParseError(
+            "All documents must carry a page number (GrpHdr/MsgPgntn/PgNb) to be merged"
+        )
+
+    ordered = sorted(documents, key=lambda doc: doc.page_number)
+    expected_pages = list(range(1, len(ordered) + 1))
+    actual_pages = [doc.page_number for doc in ordered]
+    if actual_pages != expected_pages:
+        raise CamtParseError(
+            f"Expected a contiguous page sequence {expected_pages}, got {actual_pages}"
+        )
+
+    last_page_flags = [doc.last_page for doc in ordered]
+    if last_page_flags[-1] is not True or any(last_page_flags[:-1]):
+        raise CamtParseError("Exactly the final page must have LastPgInd=true")
+
+    merged_statements: dict[str, Statement] = {}
+    statement_order: list[str] = []
+    for doc in ordered:
+        for statement in doc.statements:
+            if statement.id not in merged_statements:
+                merged_statements[statement.id] = Statement(
+                    id=statement.id,
+                    creation_datetime=statement.creation_datetime,
+                    from_date=statement.from_date,
+                    to_date=statement.to_date,
+                    account_iban=statement.account_iban,
+                    account_other_id=statement.account_other_id,
+                    account_currency=statement.account_currency,
+                    account_owner=statement.account_owner,
+                    servicer_bic=statement.servicer_bic,
+                    balances=list(statement.balances),
+                    entries=list(statement.entries),
+                )
+                statement_order.append(statement.id)
+            else:
+                target = merged_statements[statement.id]
+                existing_codes = {b.code for b in target.balances}
+                target.balances.extend(b for b in statement.balances if b.code not in existing_codes)
+                target.entries.extend(statement.entries)
+
+    first = ordered[0]
+    return Document(
+        message_type=first.message_type,
+        message_id=first.message_id,
+        creation_datetime=first.creation_datetime,
+        statements=[merged_statements[sid] for sid in statement_order],
+    )
