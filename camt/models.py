@@ -86,3 +86,5 @@ class Document:
     message_id: str
     creation_datetime: datetime | None = None
     statements: list[Statement] = field(default_factory=list)
+    page_number: int | None = None  # GrpHdr/MsgPgntn/PgNb, when the delivery is paginated
+    last_page: bool | None = None  # GrpHdr/MsgPgntn/LastPgInd
