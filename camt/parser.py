@@ -273,6 +273,19 @@ def _parse_statement(stmt_elem: etree._Element) -> Statement:
     )
 
 
+def _check_mandatory_balances(message_type: MessageType, statements: list[Statement]) -> None:
+    """camt.053 (unlike camt.052) requires each statement to carry an opening
+    (OPBD) and closing (CLBD) balance."""
+    if message_type is not MessageType.CAMT_053:
+        return
+    for statement in statements:
+        if statement.opening_balance is None or statement.closing_balance is None:
+            raise CamtParseError(
+                f"camt.053 statement {statement.id!r} is missing a mandatory "
+                "opening (OPBD) or closing (CLBD) balance"
+            )
+
+
 def _detect_message_type(document_elem: etree._Element) -> tuple[MessageType, etree._Element]:
     for msg_type in MessageType:
         wrapper = _child(document_elem, msg_type.group_wrapper_tag)
@@ -307,6 +320,12 @@ def parse_bytes(data: bytes) -> Document:
     statements = [
         _parse_statement(elem) for elem in _children(wrapper, msg_type.entry_group_tag)
     ]
+
+    # A page of a paginated delivery is inherently incomplete (e.g. the opening
+    # balance may only be on page 1, the closing balance only on the last
+    # page) — checked instead once `merge_paginated_documents` reassembles them.
+    if page_number is None:
+        _check_mandatory_balances(msg_type, statements)
 
     return Document(
         message_type=msg_type,
@@ -393,10 +412,13 @@ def merge_paginated_documents(documents: list[Document]) -> Document:
                 target.balances.extend(b for b in statement.balances if b.code not in existing_codes)
                 target.entries.extend(statement.entries)
 
+    merged_statement_list = [merged_statements[sid] for sid in statement_order]
     first = ordered[0]
+    _check_mandatory_balances(first.message_type, merged_statement_list)
+
     return Document(
         message_type=first.message_type,
         message_id=first.message_id,
         creation_datetime=first.creation_datetime,
-        statements=[merged_statements[sid] for sid in statement_order],
+        statements=merged_statement_list,
     )
