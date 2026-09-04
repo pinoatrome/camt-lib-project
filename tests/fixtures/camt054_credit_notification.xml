@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.054.001.08">
+  <BkToCstmrDbtCdtNtfctn>
+    <GrpHdr>
+      <MsgId>NOTIF-CRDT-0001</MsgId>
+      <CreDtTm>2026-09-04T10:00:00</CreDtTm>
+    </GrpHdr>
+    <Ntfctn>
+      <Id>NTFY-CRDT-0001</Id>
+      <CreDtTm>2026-09-04T10:00:00</CreDtTm>
+      <Acct>
+        <Id>
+          <Othr>
+            <Id>IT60X0542811101000000DCA002</Id>
+          </Othr>
+        </Id>
+      </Acct>
+      <Ntry>
+        <Amt Ccy="EUR">100.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Sts>BOOK</Sts>
+        <BookgDt>
+          <Dt>2026-09-04</Dt>
+        </BookgDt>
+        <NtryDtls>
+          <TxDtls>
+            <Refs>
+              <EndToEndId>E2E-PAY-0001</EndToEndId>
+            </Refs>
+            <Amt Ccy="EUR">100.00</Amt>
+            <CdtDbtInd>CRDT</CdtDbtInd>
+            <RltdPties>
+              <Dbtr>
+                <Nm>Payer Customer</Nm>
+              </Dbtr>
+            </RltdPties>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+    </Ntfctn>
+  </BkToCstmrDbtCdtNtfctn>
+</Document>
