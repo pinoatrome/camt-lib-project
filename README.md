@@ -76,6 +76,8 @@ scope.
 | camt.025 | Receipt | inbound response | `camt.camt025.parse_camt025()` |
 | camt.046 | GetReservation | outbound request | `camt.camt046.build_get_reservation_request_bytes()` |
 | camt.047 | ReturnReservation | inbound response | `camt.camt047.parse_camt047()` |
+| camt.048 | ModifyReservation | outbound request | `camt.camt048.build_modify_reservation_request_bytes()` |
+| camt.049 | DeleteReservation | outbound request | `camt.camt049.build_delete_reservation_request_bytes()` |
 | camt.050 | LiquidityCreditTransfer | outbound request | `camt.camt050.build_liquidity_transfer_bytes()` |
 | camt.052 | Bank-to-Customer Account Report | inbound report | `parse_file()` / `build_bytes()` |
 | camt.053 | Bank-to-Customer Statement | inbound report | `parse_file()` / `build_bytes()` |
@@ -155,17 +157,26 @@ entries — so the generic `parse_*`/`build_*` functions and the `Document`,
   times, end of day). `BusinessDayInfo.event_time()` looks up one event's
   timestamp by code (e.g. `"CUT-OFF-CUST"`).
 
-### Reservation query pair (camt.046 / camt.047)
+### Reservation management (camt.046 / 047 / 048 / 049)
 
-- **camt.046 — GetReservation.** An outbound request asking for the amounts
-  an account has set aside against a specific purpose — e.g. a minimum
-  reserve requirement or a standing facility — as opposed to camt.003/004,
-  which reports the account's overall balance. Optionally filtered to one
-  reservation type code (e.g. `"MMR"`). Used to check how much of an
-  account's balance is earmarked and unavailable for ordinary payments.
+A reservation is an amount an account holds aside against a specific purpose
+(e.g. a minimum reserve requirement, a standing facility) rather than the
+account's overall balance, which camt.003/004 report on instead.
+
+- **camt.046 — GetReservation.** An outbound request asking for an account's
+  current reservations, optionally filtered to one reservation type code
+  (e.g. `"MMR"`). Used to check how much of an account's balance is earmarked
+  and unavailable for ordinary payments.
 - **camt.047 — ReturnReservation.** The response to camt.046, listing each
   matching reservation's type, amount/currency, status (`ACTV` / `CLSD`) and,
   where applicable, its validity window (`from_date`/`to_date`).
+- **camt.048 — ModifyReservation.** An outbound instruction changing the
+  amount of one existing reservation, identified by account and reservation
+  type. Like camt.050 below, its synchronous response is a camt.025 Receipt
+  rather than a dedicated Return message.
+- **camt.049 — DeleteReservation.** An outbound instruction removing one
+  existing reservation entirely, identified the same way as camt.048 but
+  with no amount to carry; also answered with a camt.025 Receipt.
 
 ### Liquidity transfer pair (camt.050 / camt.025)
 
