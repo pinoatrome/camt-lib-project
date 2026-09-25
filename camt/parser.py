@@ -349,6 +349,65 @@ def parse_file(source: str | os.PathLike[str] | IO[bytes]) -> Document:
         return parse_bytes(f.read())
 
 
+_STATEMENT_METADATA_FIELDS = (
+    "creation_datetime",
+    "from_date",
+    "to_date",
+    "account_iban",
+    "account_other_id",
+    "account_currency",
+    "account_owner",
+    "servicer_bic",
+)
+
+
+def _merge_statement_metadata(target: Statement, other: Statement) -> None:
+    """Reconcile `target`'s header fields with a later page's copy (`other`)
+    of the same statement.
+
+    Some senders only put full account details on one page and leave the
+    others sparse; backfill whichever fields `target` is missing from
+    `other`. If both pages set the same field to different values, that's a
+    sign the statement id was reused for what is actually a different
+    statement/account, so raise rather than silently keeping the first page's
+    value.
+    """
+    for field_name in _STATEMENT_METADATA_FIELDS:
+        incoming = getattr(other, field_name)
+        if incoming is None:
+            continue
+        current = getattr(target, field_name)
+        if current is None:
+            setattr(target, field_name, incoming)
+        elif current != incoming:
+            raise CamtParseError(
+                f"Statement {target.id!r} has conflicting {field_name} across pages: "
+                f"{current!r} vs {incoming!r}"
+            )
+
+
+def _merge_statement_balances(target: Statement, other: Statement) -> None:
+    """Add `other`'s balances to `target`, keyed by balance code.
+
+    A balance code repeated identically across pages (e.g. every page
+    redundantly carries the same OPBD) is a harmless no-op. A balance code
+    repeated with a *different* amount/currency/credit-debit/date is a sign
+    of inconsistent data across pages, so raise instead of silently keeping
+    whichever page happened to be merged first.
+    """
+    by_code = {b.code: b for b in target.balances}
+    for balance in other.balances:
+        existing = by_code.get(balance.code)
+        if existing is None:
+            target.balances.append(balance)
+            by_code[balance.code] = balance
+        elif existing != balance:
+            raise CamtParseError(
+                f"Statement {target.id!r} has conflicting {balance.code!r} balance "
+                f"across pages: {existing} vs {balance}"
+            )
+
+
 def merge_paginated_documents(documents: list[Document]) -> Document:
     """Merge the pages of a paginated CAMT delivery (see `GrpHdr/MsgPgntn`) into
     one logical `Document`, concatenating each statement's entries in page order.
@@ -360,8 +419,16 @@ def merge_paginated_documents(documents: list[Document]) -> Document:
     matching statements across pages by `Statement.id` — back into the single
     statement a non-paginated delivery would have produced.
 
+    A statement present on more than one page has its header fields (account
+    id, currency, owner, ...) and balances reconciled across those pages —
+    filling in whichever fields a sparser page left out, and only entries are
+    concatenated as duplicates. `LastPgInd` may be omitted (rather than sent
+    as explicit `false`) on every page but the last.
+
     Raises `CamtParseError` if the pages don't form a complete, contiguous,
-    single-message-type set with exactly one final page.
+    single-message-type set with exactly one final page (also covering a
+    duplicated page number), or if the same statement disagrees with itself
+    across pages on a header field or a balance.
     """
     if not documents:
         raise CamtParseError("No documents to merge")
@@ -374,6 +441,15 @@ def merge_paginated_documents(documents: list[Document]) -> Document:
         raise CamtParseError(
             "All documents must carry a page number (GrpHdr/MsgPgntn/PgNb) to be merged"
         )
+
+    page_numbers = [doc.page_number for doc in documents]
+    duplicates = sorted({p for p in page_numbers if page_numbers.count(p) > 1})
+    if duplicates:
+        # Called out separately from the contiguity check below: a repeated
+        # page number (e.g. a page resent after a timeout) is a different
+        # failure than a genuine gap in the sequence, and worth its own
+        # message rather than a confusing "expected [1, 2, 3], got [1, 2, 2]".
+        raise CamtParseError(f"Duplicate page number(s) among documents to merge: {duplicates}")
 
     ordered = sorted(documents, key=lambda doc: doc.page_number)
     expected_pages = list(range(1, len(ordered) + 1))
@@ -408,8 +484,8 @@ def merge_paginated_documents(documents: list[Document]) -> Document:
                 statement_order.append(statement.id)
             else:
                 target = merged_statements[statement.id]
-                existing_codes = {b.code for b in target.balances}
-                target.balances.extend(b for b in statement.balances if b.code not in existing_codes)
+                _merge_statement_metadata(target, statement)
+                _merge_statement_balances(target, statement)
                 target.entries.extend(statement.entries)
 
     merged_statement_list = [merged_statements[sid] for sid in statement_order]

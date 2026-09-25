@@ -98,8 +98,15 @@ entries — so the generic `parse_*`/`build_*` functions and the `Document`,
 - **camt.053 — Bank-to-Customer Statement.** The definitive end-of-day (or
   end-of-period) statement: booked entries only, with mandatory opening
   (`OPBD`) and closing (`CLBD`) balances. This is the message to use for
-  bookkeeping and account reconciliation. Large statements may be split across
-  pages, which `merge_paginated_documents()` recombines into one `Document`.
+  bookkeeping and account reconciliation. Large statements (and camt.052
+  reports) may be split by the sender across pages (`GrpHdr/MsgPgntn`), which
+  `merge_paginated_documents()` recombines into one `Document` — matching
+  statements across pages by id, filling in whichever header fields (account
+  id, currency, owner, ...) a sparser page left out, and raising a clear
+  `CamtParseError` if two pages disagree on a header field or a balance for
+  what's meant to be the same statement, or if the page sequence has a gap or
+  a duplicate page number. `LastPgInd` may be omitted (instead of sent as
+  explicit `false`) on every page but the last.
 - **camt.054 — Debit/Credit Notification.** A push notification that a single
   debit or credit happened, sent as it happens rather than on a schedule. Used
   to react to individual payments without polling. In the settled-payment flow
