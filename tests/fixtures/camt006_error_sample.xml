@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.006.001.08">
+  <RtrTx>
+    <MsgHdr>
+      <MsgId>RESP-0003</MsgId>
+      <CreDtTm>2026-09-02T10:05:00</CreDtTm>
+      <OrgnlBizQry>
+        <MsgId>REQ-0003</MsgId>
+        <QryNm>UNKNOWN-QUERY</QryNm>
+      </OrgnlBizQry>
+    </MsgHdr>
+    <RptOrErr>
+      <BizErr>
+        <Err>
+          <Prtry>QUERY_NOT_FOUND</Prtry>
+        </Err>
+        <Desc>Named query not found</Desc>
+      </BizErr>
+    </RptOrErr>
+  </RtrTx>
+</Document>

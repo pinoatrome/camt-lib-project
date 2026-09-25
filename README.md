@@ -69,6 +69,8 @@ scope.
 | --- | --- | --- | --- |
 | camt.003 | GetAccount | outbound request | `camt.camt003.build_get_account_request_bytes()` |
 | camt.004 | ReturnAccount | inbound response / alert | `camt.camt004.parse_camt004()` |
+| camt.005 | GetTransaction | outbound request | `camt.camt005.build_get_transaction_request_bytes()` |
+| camt.006 | ReturnTransaction | inbound response | `camt.camt006.parse_camt006()` |
 | camt.025 | Receipt | inbound response | `camt.camt025.parse_camt025()` |
 | camt.050 | LiquidityCreditTransfer | outbound request | `camt.camt050.build_liquidity_transfer_bytes()` |
 | camt.052 | Bank-to-Customer Account Report | inbound report | `parse_file()` / `build_bytes()` |
@@ -112,6 +114,28 @@ entries — so the generic `parse_*`/`build_*` functions and the `Document`,
   `SUSPENDED`), servicer details and balances. The same message also arrives
   unsolicited as an account alert (for example on a status change), so it is
   parsed the same way whether or not a camt.003 was sent.
+
+### Transaction query pair (camt.005 / camt.006)
+
+- **camt.005 — GetTransaction.** An outbound request asking the bank for one
+  account's transactions, filtered by booking-date window and/or status. Used
+  when transaction-level detail is needed on demand, instead of waiting for
+  the next camt.052/053/054 report.
+
+  camt.005 also supports the ISO 20022 **delta query pattern**, for polling an
+  account without re-fetching and re-diffing the full result set each time:
+  the first request names its search criteria (`new_query_name`, built with
+  `build_get_transaction_request_*`); every later poll then sends a *delta*
+  follow-up (`build_get_transaction_delta_request_*`) that references that
+  name alone, asking for only what changed since the named query was last
+  answered.
+- **camt.006 — ReturnTransaction.** The response to camt.005. For an initial,
+  non-delta request, the transactions are reported as a single set. For a
+  delta follow-up, `parse_camt006()` splits them into a `DeltaTransactionSet`
+  of three groups — `new`, `modified` (e.g. a status change) and `cancelled`
+  — since the named query was last answered, and it also carries the query's
+  name back (`query_name`) so it can be fed straight into the next delta
+  follow-up.
 
 ### Liquidity transfer pair (camt.050 / camt.025)
 
