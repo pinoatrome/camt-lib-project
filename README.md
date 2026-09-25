@@ -71,6 +71,8 @@ scope.
 | camt.004 | ReturnAccount | inbound response / alert | `camt.camt004.parse_camt004()` |
 | camt.005 | GetTransaction | outbound request | `camt.camt005.build_get_transaction_request_bytes()` |
 | camt.006 | ReturnTransaction | inbound response | `camt.camt006.parse_camt006()` |
+| camt.018 | GetBusinessDayInformation | outbound request | `camt.camt018.build_get_business_day_request_bytes()` |
+| camt.019 | ReturnBusinessDayInformation | inbound response | `camt.camt019.parse_camt019()` |
 | camt.025 | Receipt | inbound response | `camt.camt025.parse_camt025()` |
 | camt.050 | LiquidityCreditTransfer | outbound request | `camt.camt050.build_liquidity_transfer_bytes()` |
 | camt.052 | Bank-to-Customer Account Report | inbound report | `parse_file()` / `build_bytes()` |
@@ -136,6 +138,20 @@ entries — so the generic `parse_*`/`build_*` functions and the `Document`,
   — since the named query was last answered, and it also carries the query's
   name back (`query_name`) so it can be fed straight into the next delta
   follow-up.
+
+### Business day query pair (camt.018 / camt.019)
+
+- **camt.018 — GetBusinessDayInformation.** An outbound request asking a
+  settlement system (e.g. TARGET2/T2, CLM, TIPS) for the status of one
+  business day, optionally for a specific date (defaulting to the current
+  business day otherwise). Used to check whether the system is open and what
+  its cut-off schedule is before submitting a payment or liquidity
+  instruction.
+- **camt.019 — ReturnBusinessDayInformation.** The response to camt.018,
+  carrying the system's status (`OPEN` / `CLOSED` / `CHANGEOVER`) for that
+  date plus its ordered list of scheduled events (start of day, cut-off
+  times, end of day). `BusinessDayInfo.event_time()` looks up one event's
+  timestamp by code (e.g. `"CUT-OFF-CUST"`).
 
 ### Liquidity transfer pair (camt.050 / camt.025)
 
