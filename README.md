@@ -74,6 +74,8 @@ scope.
 | camt.018 | GetBusinessDayInformation | outbound request | `camt.camt018.build_get_business_day_request_bytes()` |
 | camt.019 | ReturnBusinessDayInformation | inbound response | `camt.camt019.parse_camt019()` |
 | camt.025 | Receipt | inbound response | `camt.camt025.parse_camt025()` |
+| camt.046 | GetReservation | outbound request | `camt.camt046.build_get_reservation_request_bytes()` |
+| camt.047 | ReturnReservation | inbound response | `camt.camt047.parse_camt047()` |
 | camt.050 | LiquidityCreditTransfer | outbound request | `camt.camt050.build_liquidity_transfer_bytes()` |
 | camt.052 | Bank-to-Customer Account Report | inbound report | `parse_file()` / `build_bytes()` |
 | camt.053 | Bank-to-Customer Statement | inbound report | `parse_file()` / `build_bytes()` |
@@ -152,6 +154,18 @@ entries — so the generic `parse_*`/`build_*` functions and the `Document`,
   date plus its ordered list of scheduled events (start of day, cut-off
   times, end of day). `BusinessDayInfo.event_time()` looks up one event's
   timestamp by code (e.g. `"CUT-OFF-CUST"`).
+
+### Reservation query pair (camt.046 / camt.047)
+
+- **camt.046 — GetReservation.** An outbound request asking for the amounts
+  an account has set aside against a specific purpose — e.g. a minimum
+  reserve requirement or a standing facility — as opposed to camt.003/004,
+  which reports the account's overall balance. Optionally filtered to one
+  reservation type code (e.g. `"MMR"`). Used to check how much of an
+  account's balance is earmarked and unavailable for ordinary payments.
+- **camt.047 — ReturnReservation.** The response to camt.046, listing each
+  matching reservation's type, amount/currency, status (`ACTV` / `CLSD`) and,
+  where applicable, its validity window (`from_date`/`to_date`).
 
 ### Liquidity transfer pair (camt.050 / camt.025)
 
