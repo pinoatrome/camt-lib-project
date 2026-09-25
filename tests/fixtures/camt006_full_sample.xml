@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.006.001.08">
+  <RtrTx>
+    <MsgHdr>
+      <MsgId>RESP-0001</MsgId>
+      <CreDtTm>2026-09-02T10:00:00</CreDtTm>
+      <OrgnlBizQry>
+        <MsgId>REQ-0001</MsgId>
+        <QryNm>DAILY-RECON</QryNm>
+      </OrgnlBizQry>
+    </MsgHdr>
+    <RptOrErr>
+      <TxRpt>
+        <QryNm>DAILY-RECON</QryNm>
+        <TxRptOrErr>
+          <TxRpt>
+            <New>
+              <TxDtls>
+                <Refs>
+                  <TxId>TX-0001</TxId>
+                  <EndToEndId>E2E-0001</EndToEndId>
+                </Refs>
+                <Amt Ccy="EUR">150.00</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>
+                  <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                  <Dt>2026-09-01</Dt>
+                </BookgDt>
+                <AddtlTxInf>Invoice 1001</AddtlTxInf>
+              </TxDtls>
+              <TxDtls>
+                <Refs>
+                  <TxId>TX-0002</TxId>
+                  <EndToEndId>E2E-0002</EndToEndId>
+                </Refs>
+                <Amt Ccy="EUR">75.50</Amt>
+                <CdtDbtInd>DBIT</CdtDbtInd>
+                <Sts>
+                  <Cd>BOOK</Cd>
+                </Sts>
+                <BookgDt>
+                  <Dt>2026-09-02</Dt>
+                </BookgDt>
+              </TxDtls>
+            </New>
+          </TxRpt>
+        </TxRptOrErr>
+      </TxRpt>
+    </RptOrErr>
+  </RtrTx>
+</Document>
