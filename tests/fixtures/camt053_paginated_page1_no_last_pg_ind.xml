@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
+  <BkToCstmrStmt>
+    <GrpHdr>
+      <MsgId>MSG-EOD-0002</MsgId>
+      <CreDtTm>2026-09-05T23:00:00</CreDtTm>
+      <MsgPgntn>
+        <PgNb>1</PgNb>
+      </MsgPgntn>
+    </GrpHdr>
+    <Stmt>
+      <Id>STMT-EOD-0002</Id>
+      <CreDtTm>2026-09-05T23:00:00</CreDtTm>
+      <Acct>
+        <Id>
+          <IBAN>IT60X0542811101000000123456</IBAN>
+        </Id>
+        <Ccy>EUR</Ccy>
+      </Acct>
+      <Bal>
+        <Tp>
+          <CdOrPrtry>
+            <Cd>OPBD</Cd>
+          </CdOrPrtry>
+        </Tp>
+        <Amt Ccy="EUR">200.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Dt>
+          <Dt>2026-09-05</Dt>
+        </Dt>
+      </Bal>
+      <Ntry>
+        <Amt Ccy="EUR">10.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Sts>BOOK</Sts>
+      </Ntry>
+    </Stmt>
+  </BkToCstmrStmt>
+</Document>

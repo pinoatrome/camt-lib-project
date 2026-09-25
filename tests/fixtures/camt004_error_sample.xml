@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.004.001.08">
+  <RtrAcct>
+    <MsgHdr>
+      <MsgId>RESP-0002</MsgId>
+      <CreDtTm>2026-09-02T10:05:00</CreDtTm>
+      <OrgnlBizInstr>
+        <MsgId>REQ-0002</MsgId>
+      </OrgnlBizInstr>
+    </MsgHdr>
+    <RptOrErr>
+      <BizErr>
+        <Err>
+          <Prtry>NOT_FOUND</Prtry>
+        </Err>
+        <Desc>Account not found</Desc>
+      </BizErr>
+    </RptOrErr>
+  </RtrAcct>
+</Document>
