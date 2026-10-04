@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from decimal import Decimal
+
 import pytest
 
 from camt.camt004 import Camt004Response, parse_camt004
@@ -108,3 +110,32 @@ def test_parse_camt004_account_without_holding_balances_or_limit():
     assert account.hold_limit_ccy is None
     assert account.psp_bic is None
     assert account.servicer_name is None
+
+
+def test_account_report_balance_lookup_by_type_code():
+    account = parse_camt004((FIXTURES / "camt004_success_sample.xml").read_bytes()).account
+
+    assert account.balance("AVLB").amount == 900.00
+    assert account.balance("OPBD") is None
+    assert account.closing_balance.type_code == "CLBD"
+    assert account.closing_balance.amount == 1250.50
+
+
+def test_account_report_remaining_holding_capacity():
+    account = parse_camt004((FIXTURES / "camt004_success_sample.xml").read_bytes()).account
+
+    # 5000.00 limit - 1250.50 closing booked, exact (no float rounding).
+    assert account.remaining_holding_capacity == Decimal("3749.50")
+
+
+def test_account_report_remaining_holding_capacity_needs_limit_and_closing_balance():
+    account = parse_camt004((FIXTURES / "camt004_success_sample.xml").read_bytes()).account
+
+    account.hold_limit = None
+    assert account.remaining_holding_capacity is None
+
+    account.hold_limit = 5000.00
+    account.balances = [b for b in account.balances if b.type_code != "CLBD"]
+    assert account.closing_balance is None
+    assert account.remaining_holding_capacity is None
+

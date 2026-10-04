@@ -10,6 +10,7 @@ here directly rather than through the library's parser.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from decimal import Decimal
 
 from lxml import etree
 
@@ -42,6 +43,25 @@ class AccountReport:
     balances: list[Balance] = field(default_factory=list)
     hold_limit: float | None = None
     hold_limit_ccy: str | None = None
+
+    def balance(self, type_code: str) -> Balance | None:
+        return next((b for b in self.balances if b.type_code == type_code), None)
+
+    @property
+    def closing_balance(self) -> Balance | None:
+        return self.balance("CLBD")
+
+    @property
+    def remaining_holding_capacity(self) -> Decimal | None:
+        """How much more the account can hold before reaching its holding limit
+        (`hold_limit` minus the closing booked balance), or None if either is missing.
+
+        Computed in Decimal so the result is exact for the 2-decimal amounts involved.
+        """
+        closing = self.closing_balance
+        if closing is None or self.hold_limit is None:
+            return None
+        return Decimal(str(self.hold_limit)) - Decimal(str(closing.amount))
 
 
 @dataclass
