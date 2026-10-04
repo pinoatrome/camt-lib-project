@@ -126,7 +126,10 @@ entries — so the generic `parse_*`/`build_*` functions and the `Document`,
   account's identifiers, currency, status (`ENABLED` / `BLOCKED` /
   `SUSPENDED`), servicer details and balances. The same message also arrives
   unsolicited as an account alert (for example on a status change), so it is
-  parsed the same way whether or not a camt.003 was sent.
+  parsed the same way whether or not a camt.003 was sent. The parsed
+  `AccountReport` exposes `balance(type_code)`, `closing_balance` (CLBD) and
+  `remaining_holding_capacity` (holding limit minus closing balance, as a
+  `Decimal`).
 
 ### Transaction query pair (camt.005 / camt.006)
 
