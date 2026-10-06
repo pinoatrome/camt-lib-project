@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from camt import CreditDebit, EntryStatus, MessageType, UnsupportedMessageType, parse_file
+from camt import CreditDebit, EntryStatus, MessageType, UnsupportedMessageType, parse_bytes, parse_file
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -53,11 +53,34 @@ def test_parse_camt052():
     assert doc.message_type is MessageType.CAMT_052
     stmt = doc.statements[0]
     assert stmt.id == "RPT-0001"
+    assert stmt.account_owner.name == "Acme S.r.l."
+    assert stmt.account_owner.bic == "ACMEITMMXXX"
     assert stmt.balances[0].code == "ITBD"
     assert stmt.entries[0].status is EntryStatus.PENDING
     assert stmt.entries[0].bank_transaction_code == "PROP-CODE-1"
     # camt.052 GrpHdr/Rpt use DtTm-only dates in this fixture; still normalized to date.
     assert stmt.entries[0].booking_date is not None
+
+
+def test_parse_party_bic_in_schema_02_form():
+    """Before .04 the party's BIC element is `BICOrBEI`, not `AnyBIC`."""
+    xml = (FIXTURES / "camt052_sample.xml").read_bytes().replace(b"AnyBIC", b"BICOrBEI")
+
+    assert parse_bytes(xml).statements[0].account_owner.bic == "ACMEITMMXXX"
+
+
+def test_party_with_only_a_bic_is_kept():
+    xml = (FIXTURES / "camt052_sample.xml").read_bytes().replace(b"<Nm>Acme S.r.l.</Nm>", b"")
+
+    owner = parse_bytes(xml).statements[0].account_owner
+    assert owner.name is None
+    assert owner.bic == "ACMEITMMXXX"
+
+
+def test_party_without_a_bic():
+    owner = parse_file(FIXTURES / "camt053_sample.xml").statements[0].account_owner
+
+    assert owner.bic is None
 
 
 def test_parse_camt054():

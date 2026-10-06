@@ -29,7 +29,7 @@ def _sample_document() -> Document:
                 to_date=date(2026, 1, 4),
                 account_iban="IT60X0542811101000000123456",
                 account_currency="EUR",
-                account_owner=Party(name="Acme S.r.l."),
+                account_owner=Party(name="Acme S.r.l.", bic="ACMEITMMXXX"),
                 servicer_bic="BPMOIT22XXX",
                 balances=[
                     Balance(
@@ -64,7 +64,7 @@ def _sample_document() -> Document:
                                 credit_debit=CreditDebit.CREDIT,
                                 end_to_end_id="E2E-1",
                                 remittance_info="Invoice 2026-042",
-                                debtor=Party(name="Widget Buyer Ltd", iban="GB29NWBK60161331926819"),
+                                debtor=Party(name="Widget Buyer Ltd", iban="GB29NWBK60161331926819", bic="NWBKGB2LXXX"),
                             )
                         ],
                     )
@@ -102,3 +102,12 @@ def test_round_trip_parse_build_parse():
     assert entry.credit_debit == orig_entry.credit_debit
     assert entry.transaction_details[0].end_to_end_id == "E2E-1"
     assert entry.transaction_details[0].debtor.name == "Widget Buyer Ltd"
+    assert entry.transaction_details[0].debtor.bic == "NWBKGB2LXXX"
+    assert stmt.account_owner == orig_stmt.account_owner
+
+
+def test_party_bic_is_built_in_schema_02_form():
+    xml_bytes = build_bytes(_sample_document())
+
+    assert b"<BICOrBEI>ACMEITMMXXX</BICOrBEI>" in xml_bytes
+    assert b"AnyBIC" not in xml_bytes

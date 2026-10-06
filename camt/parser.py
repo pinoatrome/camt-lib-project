@@ -161,8 +161,15 @@ def _parse_bank_transaction_code(bktxcd_elem: etree._Element | None) -> str | No
     return None
 
 
+def _parse_party_bic(pty_elem: etree._Element | None) -> str | None:
+    """A party's BIC: `Id/OrgId/AnyBIC` (schema .04 and later) or `Id/OrgId/BICOrBEI` (.02)."""
+    org_id = _path(pty_elem, "Id", "OrgId")
+    return _text(_child(org_id, "AnyBIC")) or _text(_child(org_id, "BICOrBEI"))
+
+
 def _parse_party(pty_elem: etree._Element | None, acct_elem: etree._Element | None) -> Party | None:
     name = _text(_child(pty_elem, "Nm")) if pty_elem is not None else None
+    bic = _parse_party_bic(pty_elem)
     iban = None
     other_id = None
     if acct_elem is not None:
@@ -171,9 +178,9 @@ def _parse_party(pty_elem: etree._Element | None, acct_elem: etree._Element | No
         if iban is None:
             othr = _child(id_elem, "Othr")
             other_id = _text(_child(othr, "Id"))
-    if name is None and iban is None and other_id is None:
+    if name is None and iban is None and other_id is None and bic is None:
         return None
-    return Party(name=name, iban=iban, other_id=other_id)
+    return Party(name=name, iban=iban, other_id=other_id, bic=bic)
 
 
 def _parse_balance(bal_elem: etree._Element) -> Balance:

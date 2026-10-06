@@ -44,9 +44,7 @@ def _build_account(parent: etree._Element, statement: Statement) -> None:
         sub(othr, "Id", statement.account_other_id)
     if statement.account_currency:
         sub(acct, "Ccy", statement.account_currency)
-    if statement.account_owner is not None and statement.account_owner.name:
-        ownr = sub(acct, "Ownr")
-        sub(ownr, "Nm", statement.account_owner.name)
+    _build_party(acct, "Ownr", statement.account_owner)
     if statement.servicer_bic:
         svcr = sub(acct, "Svcr")
         fin_instn_id = sub(svcr, "FinInstnId")
@@ -64,14 +62,24 @@ def _build_balance(parent: etree._Element, balance: Balance) -> None:
     sub(dt, "Dt", iso_date(balance.date))
 
 
+def _build_party(parent: etree._Element, tag: str, party: Party | None) -> None:
+    """The party's name and BIC; the BIC goes in `Id/OrgId/BICOrBEI`, its .02 schema element."""
+    if party is None or not (party.name or party.bic):
+        return
+    pty = sub(parent, tag)
+    if party.name:
+        sub(pty, "Nm", party.name)
+    if party.bic:
+        org_id = sub(sub(pty, "Id"), "OrgId")
+        sub(org_id, "BICOrBEI", party.bic)
+
+
 def _build_party_and_account(
     parent: etree._Element, party_tag: str, acct_tag: str, party: Party | None
 ) -> None:
     if party is None:
         return
-    if party.name:
-        pty = sub(parent, party_tag)
-        sub(pty, "Nm", party.name)
+    _build_party(parent, party_tag, party)
     if party.iban or party.other_id:
         acct = sub(parent, acct_tag)
         id_elem = sub(acct, "Id")
