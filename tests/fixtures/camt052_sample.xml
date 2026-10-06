@@ -13,6 +13,14 @@
           <IBAN>IT60X0542811101000000123456</IBAN>
         </Id>
         <Ccy>EUR</Ccy>
+        <Ownr>
+          <Nm>Acme S.r.l.</Nm>
+          <Id>
+            <OrgId>
+              <AnyBIC>ACMEITMMXXX</AnyBIC>
+            </OrgId>
+          </Id>
+        </Ownr>
       </Acct>
       <Bal>
         <Tp>
