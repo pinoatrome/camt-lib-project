@@ -93,6 +93,7 @@ def test_round_trip_parse_build_parse():
     orig_stmt = original.statements[0]
     assert stmt.id == orig_stmt.id
     assert stmt.account_iban == orig_stmt.account_iban
+    assert (stmt.from_date, stmt.to_date) == (orig_stmt.from_date, orig_stmt.to_date)
     assert stmt.opening_balance.amount == orig_stmt.opening_balance.amount
     assert stmt.closing_balance.amount == orig_stmt.closing_balance.amount
 
