@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
@@ -21,6 +22,8 @@ def test_parse_camt053():
     assert stmt.account_currency == "EUR"
     assert stmt.account_owner.name == "Acme S.r.l."
     assert stmt.servicer_bic == "BPMOIT22XXX"
+    assert stmt.from_date == date(2026, 1, 4)
+    assert stmt.to_date == date(2026, 1, 4)
 
     assert stmt.opening_balance.amount == Decimal("1000.00")
     assert stmt.closing_balance.amount == Decimal("1250.50")
@@ -122,3 +125,12 @@ def test_unrecognized_wrapper_raises(tmp_path):
     )
     with pytest.raises(UnsupportedMessageType):
         parse_file(bogus)
+
+
+def test_statement_without_period():
+    xml = (FIXTURES / "camt053_sample.xml").read_bytes()
+    start, end = xml.index(b"<FrToDt>"), xml.index(b"</FrToDt>") + len(b"</FrToDt>")
+
+    stmt = parse_bytes(xml[:start] + xml[end:]).statements[0]
+
+    assert (stmt.from_date, stmt.to_date) == (None, None)

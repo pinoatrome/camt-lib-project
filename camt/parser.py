@@ -246,9 +246,11 @@ def _parse_statement(stmt_elem: etree._Element) -> Statement:
     stmt_id = _text(_child(stmt_elem, "Id")) or ""
     creation_dt = _parse_datetime(_text(_child(stmt_elem, "CreDtTm")))
 
+    # FrToDt holds the ISODateTime values directly (<FrDtTm>2026-01-04T00:00:00</FrDtTm>),
+    # not wrapped in Dt/DtTm like balance and booking dates.
     fr_to_dt = _child(stmt_elem, "FrToDt")
-    from_dt = _parse_date_or_datetime(_child(fr_to_dt, "FrDtTm")) if fr_to_dt is not None else None
-    to_dt = _parse_date_or_datetime(_child(fr_to_dt, "ToDtTm")) if fr_to_dt is not None else None
+    from_dt = _parse_datetime(_text(_child(fr_to_dt, "FrDtTm")))
+    to_dt = _parse_datetime(_text(_child(fr_to_dt, "ToDtTm")))
 
     acct = _child(stmt_elem, "Acct")
     acct_id = _child(acct, "Id")
