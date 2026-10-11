@@ -15,7 +15,7 @@ from dataclasses import dataclass
 
 from .enums import CreditDebit
 from .exceptions import CamtParseError
-from .models import Entry
+from .models import Entry, ReturnInfo
 from .parser import parse_bytes
 
 
@@ -42,6 +42,18 @@ class DebitCreditNotification:
         if not self.entry.transaction_details:
             return None
         return self.entry.transaction_details[0].end_to_end_id
+
+    @property
+    def return_info(self) -> ReturnInfo | None:
+        """Why the payment came back, when the entry is a return (pacs.004) of the
+        payment with `end_to_end_id`: e.g. FOCR, answering a recall (camt.056)."""
+        if not self.entry.transaction_details:
+            return None
+        return self.entry.transaction_details[0].return_info
+
+    @property
+    def is_return(self) -> bool:
+        return self.return_info is not None
 
 
 def parse_debit_credit_notification(xml_bytes: bytes) -> DebitCreditNotification:

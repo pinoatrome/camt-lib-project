@@ -15,7 +15,7 @@ from lxml import etree
 
 from .enums import CreditDebit, EntryStatus, MessageType
 from .exceptions import CamtParseError, UnsupportedMessageType
-from .models import Balance, Document, Entry, Party, Statement, TransactionDetails
+from .models import Balance, Document, Entry, Party, ReturnInfo, Statement, TransactionDetails
 
 
 def _local(tag: str) -> str:
@@ -198,6 +198,17 @@ def _parse_balance(bal_elem: etree._Element) -> Balance:
     )
 
 
+def _parse_return_info(rtr_inf: etree._Element | None) -> ReturnInfo | None:
+    if rtr_inf is None:
+        return None
+    lines = [_text(line) for line in _children(rtr_inf, "AddtlInf")]
+    return ReturnInfo(
+        reason_code=_text(_path(rtr_inf, "Rsn", "Cd")),
+        reason_proprietary=_text(_path(rtr_inf, "Rsn", "Prtry")),
+        additional_info=" ".join(line for line in lines if line) or None,
+    )
+
+
 def _parse_transaction_details(tx_elem: etree._Element) -> TransactionDetails:
     amount, currency = _parse_amount(tx_elem)
     refs = _child(tx_elem, "Refs")
@@ -214,6 +225,7 @@ def _parse_transaction_details(tx_elem: etree._Element) -> TransactionDetails:
         bank_transaction_code=_parse_bank_transaction_code(_child(tx_elem, "BkTxCd")),
         debtor=_parse_party(_child(rltd_pties, "Dbtr"), _child(rltd_pties, "DbtrAcct")),
         creditor=_parse_party(_child(rltd_pties, "Cdtr"), _child(rltd_pties, "CdtrAcct")),
+        return_info=_parse_return_info(_child(tx_elem, "RtrInf")),
     )
 
 

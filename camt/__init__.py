@@ -1,7 +1,7 @@
 from .builder import build_bytes, build_element, build_string
 from .enums import CreditDebit, EntryStatus, MessageType
 from .exceptions import CamtError, CamtParseError, UnsupportedMessageType
-from .models import Balance, Document, Entry, Party, Statement, TransactionDetails
+from .models import Balance, Document, Entry, Party, ReturnInfo, Statement, TransactionDetails
 from .parser import merge_paginated_documents, parse_bytes, parse_file, parse_string
 
 __all__ = [
@@ -14,6 +14,7 @@ __all__ = [
     "EntryStatus",
     "MessageType",
     "Party",
+    "ReturnInfo",
     "Statement",
     "TransactionDetails",
     "UnsupportedMessageType",

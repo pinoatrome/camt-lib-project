@@ -74,6 +74,7 @@ scope.
 | camt.018 | GetBusinessDayInformation | outbound request | `camt.camt018.build_get_business_day_request_bytes()` |
 | camt.019 | ReturnBusinessDayInformation | inbound response | `camt.camt019.parse_camt019()` |
 | camt.025 | Receipt | inbound response | `camt.camt025.parse_camt025()` |
+| camt.029 | ResolutionOfInvestigation | outbound / inbound answer | `camt.camt029.build_resolution_bytes()` / `parse_camt029()` |
 | camt.046 | GetReservation | outbound request | `camt.camt046.build_get_reservation_request_bytes()` |
 | camt.047 | ReturnReservation | inbound response | `camt.camt047.parse_camt047()` |
 | camt.048 | ModifyReservation | outbound request | `camt.camt048.build_modify_reservation_request_bytes()` |
@@ -82,6 +83,7 @@ scope.
 | camt.052 | Bank-to-Customer Account Report | inbound report | `parse_file()` / `build_bytes()` |
 | camt.053 | Bank-to-Customer Statement | inbound report | `parse_file()` / `build_bytes()` |
 | camt.054 | Bank-to-Customer Debit/Credit Notification | inbound report | `parse_file()` / `build_bytes()`, plus `camt.camt054` |
+| camt.056 | FIToFIPaymentCancellationRequest | outbound / inbound request | `camt.camt056.build_cancellation_request_bytes()` / `parse_camt056()` |
 
 ### Report messages (camt.052 / 053 / 054)
 
@@ -115,6 +117,14 @@ entries — so the generic `parse_*`/`build_*` functions and the `Document`,
   `camt.camt054.parse_debit_credit_notification()` gives that single-entry view
   and exposes the entry's `EndToEndId` for matching back to the originating
   pacs.008 payment.
+
+  A payment sent back (a pacs.004 return) is notified the same way, with the
+  returned payment's `EndToEndId` and why it came back: the transaction's
+  `RtrInf`, parsed into `TransactionDetails.return_info` (a `ReturnInfo`: the
+  reason code, e.g. `FOCR` after an accepted recall, `AC04`, `MD06`, or a
+  proprietary reason, and the additional information) and built back from it.
+  `DebitCreditNotification.is_return` / `.return_info` give it on the
+  single-entry view.
 
 ### Account query pair (camt.003 / camt.004)
 
@@ -187,6 +197,28 @@ account's overall balance, which camt.003/004 report on instead.
 - **camt.049 — DeleteReservation.** An outbound instruction removing one
   existing reservation entirely, identified the same way as camt.048 but
   with no amount to carry; also answered with a camt.025 Receipt.
+
+### Recall pair (camt.056 / camt.029)
+
+A recall asks for a settled payment back. Both messages open with the case
+assignment (`CaseAssignment`: an id, the assigner and assignee agents' BICs,
+the creation time) and refer to each payment by its original pacs.008 MsgId
+and EndToEndId; they're built (with validation raising `CamtError`) and parsed
+(by local name, any version) directly, like the other request/response pairs.
+
+- **camt.056 — FIToFIPaymentCancellationRequest.** The payer's PSP asks the
+  payee's PSP to send back one or more payments (`RecalledPayment`), each with
+  a cancellation reason: a duplicate (`DUPL`), a fraud (`FRAD`), a technical
+  problem (`TECH`), the customer's request (`CUST`), a wrong amount (`AM09`) or
+  account (`AC03`), an undue payment (`UPAY`). Built as `.001.08`.
+- **camt.029 — ResolutionOfInvestigation.** The payee's PSP's answer when it
+  doesn't send the money back: the case's outcome (`Sts/Conf`: `RJCR`
+  refused, `PDCR` pending, ...) and each payment's (`RecallAnswer.status`,
+  `TxCxlSts`), a refusal with its reason — the customer refused (`CUST`) or
+  didn't answer (`NOAS`), already returned (`ARDT`), a closed account (`AC04`),
+  no funds (`AM04`), a legal decision (`LEGL`). Built as `.001.09`. A recall
+  that's accepted is answered with the pacs.004 return instead (reason
+  `FOCR`), which then shows up in the camt.054 as `return_info`.
 
 ### Liquidity transfer pair (camt.050 / camt.025)
 

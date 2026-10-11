@@ -107,3 +107,22 @@ def test_parse_debit_credit_notification_rejects_multiple_entries():
 </Document>"""
     with pytest.raises(CamtParseError, match="one <Ntry>"):
         parse_debit_credit_notification(xml)
+
+
+def test_parse_return_notification_carries_the_return_reason():
+    xml = (FIXTURES / "camt054_return_notification.xml").read_bytes()
+    notif = parse_debit_credit_notification(xml)
+
+    assert notif.is_credit is True
+    assert notif.is_return is True
+    assert notif.end_to_end_id == "E2E-PAY-0001"
+    assert notif.return_info.reason_code == "FOCR"
+    assert notif.return_info.reason_proprietary is None
+    assert notif.return_info.additional_info == "Recall accepted: payment made by mistake"
+
+
+def test_an_ordinary_payment_notification_is_not_a_return():
+    notif = parse_debit_credit_notification((FIXTURES / "camt054_credit_notification.xml").read_bytes())
+
+    assert notif.is_return is False
+    assert notif.return_info is None

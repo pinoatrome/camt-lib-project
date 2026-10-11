@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A recall, as the payer's PSP sends it: two payments asked back, a duplicate and a fraud. -->
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.056.001.08">
+  <FIToFIPmtCxlReq>
+    <Assgnmt>
+      <Id>RCL-0001</Id>
+      <Assgnr><Agt><FinInstnId><BICFI>BCITITMMXXX</BICFI></FinInstnId></Agt></Assgnr>
+      <Assgne><Agt><FinInstnId><BICFI>UNCRITM1XXX</BICFI></FinInstnId></Agt></Assgne>
+      <CreDtTm>2026-10-11T10:00:00+00:00</CreDtTm>
+    </Assgnmt>
+    <Case>
+      <Id>CASE-0001</Id>
+      <Cretr><Agt><FinInstnId><BICFI>BCITITMMXXX</BICFI></FinInstnId></Agt></Cretr>
+    </Case>
+    <Undrlyg>
+      <TxInf>
+        <CxlId>CXL-0001</CxlId>
+        <OrgnlGrpInf>
+          <OrgnlMsgId>BCIPAY-0042</OrgnlMsgId>
+          <OrgnlMsgNmId>pacs.008.001.08</OrgnlMsgNmId>
+        </OrgnlGrpInf>
+        <OrgnlEndToEndId>E2E-DEUR-0420</OrgnlEndToEndId>
+        <OrgnlIntrBkSttlmAmt Ccy="EUR">80.00</OrgnlIntrBkSttlmAmt>
+        <CxlRsnInf>
+          <Rsn><Cd>DUPL</Cd></Rsn>
+          <AddtlInf>Paid twice</AddtlInf>
+        </CxlRsnInf>
+      </TxInf>
+      <TxInf>
+        <OrgnlGrpInf>
+          <OrgnlMsgId>BCIPAY-0043</OrgnlMsgId>
+          <OrgnlMsgNmId>pacs.008.001.08</OrgnlMsgNmId>
+        </OrgnlGrpInf>
+        <OrgnlInstrId>INSTR-0430</OrgnlInstrId>
+        <OrgnlEndToEndId>E2E-DEUR-0430</OrgnlEndToEndId>
+        <OrgnlTxId>TX-0430</OrgnlTxId>
+        <CxlRsnInf>
+          <Rsn><Cd>FRAD</Cd></Rsn>
+        </CxlRsnInf>
+      </TxInf>
+    </Undrlyg>
+  </FIToFIPmtCxlReq>
+</Document>

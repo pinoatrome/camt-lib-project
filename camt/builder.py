@@ -111,6 +111,16 @@ def _build_transaction_details(parent: etree._Element, tx: TransactionDetails) -
     if tx.remittance_info:
         rmt_inf = sub(tx_dtls, "RmtInf")
         sub(rmt_inf, "Ustrd", tx.remittance_info)
+    if tx.return_info is not None:
+        rtr_inf = sub(tx_dtls, "RtrInf")
+        if tx.return_info.reason_code or tx.return_info.reason_proprietary:
+            rsn = sub(rtr_inf, "Rsn")
+            if tx.return_info.reason_code:
+                sub(rsn, "Cd", tx.return_info.reason_code)
+            else:
+                sub(rsn, "Prtry", tx.return_info.reason_proprietary)
+        if tx.return_info.additional_info:
+            sub(rtr_inf, "AddtlInf", tx.return_info.additional_info)
 
 
 def _build_entry(parent: etree._Element, entry: Entry) -> None:

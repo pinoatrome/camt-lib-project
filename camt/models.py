@@ -25,6 +25,16 @@ class Balance:
 
 
 @dataclass
+class ReturnInfo:
+    """Why a payment came back (`TxDtls/RtrInf`): it's a return (pacs.004) of the
+    payment with the transaction's EndToEndId."""
+
+    reason_code: str | None = None  # Rsn/Cd, e.g. FOCR (after a recall), AC04, MD06
+    reason_proprietary: str | None = None  # Rsn/Prtry, when the reason isn't an ISO code
+    additional_info: str | None = None  # AddtlInf, the lines joined by a space
+
+
+@dataclass
 class TransactionDetails:
     amount: Decimal | None = None
     currency: str | None = None
@@ -36,6 +46,11 @@ class TransactionDetails:
     bank_transaction_code: str | None = None
     debtor: Party | None = None
     creditor: Party | None = None
+    return_info: ReturnInfo | None = None
+
+    @property
+    def is_return(self) -> bool:
+        return self.return_info is not None
 
 
 @dataclass
