@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The payee's PSP answering a recall: one payment refused (the customer said no), one still pending. -->
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.029.001.09">
+  <RsltnOfInvstgtn>
+    <Assgnmt>
+      <Id>RES-0001</Id>
+      <Assgnr><Agt><FinInstnId><BICFI>UNCRITM1XXX</BICFI></FinInstnId></Agt></Assgnr>
+      <Assgne><Agt><FinInstnId><BICFI>BCITITMMXXX</BICFI></FinInstnId></Agt></Assgne>
+      <CreDtTm>2026-10-12T09:00:00+00:00</CreDtTm>
+    </Assgnmt>
+    <RslvdCase>
+      <Id>CASE-0001</Id>
+      <Cretr><Agt><FinInstnId><BICFI>BCITITMMXXX</BICFI></FinInstnId></Agt></Cretr>
+    </RslvdCase>
+    <Sts>
+      <Conf>RJCR</Conf>
+    </Sts>
+    <CxlDtls>
+      <TxInfAndSts>
+        <CxlStsId>CXLSTS-0001</CxlStsId>
+        <OrgnlGrpInf>
+          <OrgnlMsgId>BCIPAY-0042</OrgnlMsgId>
+          <OrgnlMsgNmId>pacs.008.001.08</OrgnlMsgNmId>
+        </OrgnlGrpInf>
+        <OrgnlEndToEndId>E2E-DEUR-0420</OrgnlEndToEndId>
+        <TxCxlSts>RJCR</TxCxlSts>
+        <CxlStsRsnInf>
+          <Rsn><Cd>CUST</Cd></Rsn>
+          <AddtlInf>The payee refused:</AddtlInf>
+          <AddtlInf>goods delivered</AddtlInf>
+        </CxlStsRsnInf>
+        <OrgnlIntrBkSttlmAmt Ccy="EUR">80.00</OrgnlIntrBkSttlmAmt>
+      </TxInfAndSts>
+      <TxInfAndSts>
+        <OrgnlGrpInf>
+          <OrgnlMsgId>BCIPAY-0043</OrgnlMsgId>
+          <OrgnlMsgNmId>pacs.008.001.08</OrgnlMsgNmId>
+        </OrgnlGrpInf>
+        <OrgnlEndToEndId>E2E-DEUR-0430</OrgnlEndToEndId>
+        <TxCxlSts>PDCR</TxCxlSts>
+      </TxInfAndSts>
+    </CxlDtls>
+  </RsltnOfInvstgtn>
+</Document>
