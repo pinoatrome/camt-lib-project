@@ -126,3 +126,11 @@ def test_an_ordinary_payment_notification_is_not_a_return():
 
     assert notif.is_return is False
     assert notif.return_info is None
+
+
+def test_a_notification_names_the_original_message():
+    xml = (FIXTURES / "camt054_return_notification.xml").read_bytes().replace(
+        b"<Refs>", b"<Refs>\n              <MsgId>PSPPAY-0001</MsgId>"
+    )
+
+    assert parse_debit_credit_notification(xml).entry.transaction_details[0].message_id == "PSPPAY-0001"

@@ -221,6 +221,7 @@ def _parse_transaction_details(tx_elem: etree._Element) -> TransactionDetails:
         end_to_end_id=_text(_child(refs, "EndToEndId")),
         instruction_id=_text(_child(refs, "InstrId")),
         account_servicer_ref=_text(_child(refs, "AcctSvcrRef")),
+        message_id=_text(_child(refs, "MsgId")),
         remittance_info=_text(_child(rmt_inf, "Ustrd")),
         bank_transaction_code=_parse_bank_transaction_code(_child(tx_elem, "BkTxCd")),
         debtor=_parse_party(_child(rltd_pties, "Dbtr"), _child(rltd_pties, "DbtrAcct")),

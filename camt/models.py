@@ -42,6 +42,9 @@ class TransactionDetails:
     end_to_end_id: str | None = None
     instruction_id: str | None = None
     account_servicer_ref: str | None = None
+    # Refs/MsgId: the MsgId of the message that carried the transaction (the original
+    # pacs.008, for a payment), so the payee's PSP can refer to it, e.g. to return it.
+    message_id: str | None = None
     remittance_info: str | None = None
     bank_transaction_code: str | None = None
     debtor: Party | None = None

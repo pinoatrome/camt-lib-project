@@ -92,14 +92,17 @@ def _build_party_and_account(
 
 def _build_transaction_details(parent: etree._Element, tx: TransactionDetails) -> None:
     tx_dtls = sub(parent, "TxDtls")
-    if tx.end_to_end_id or tx.instruction_id or tx.account_servicer_ref:
+    if tx.end_to_end_id or tx.instruction_id or tx.account_servicer_ref or tx.message_id:
         refs = sub(tx_dtls, "Refs")
+        # TransactionReferences order: MsgId, AcctSvcrRef, PmtInfId, InstrId, EndToEndId.
+        if tx.message_id:
+            sub(refs, "MsgId", tx.message_id)
+        if tx.account_servicer_ref:
+            sub(refs, "AcctSvcrRef", tx.account_servicer_ref)
         if tx.instruction_id:
             sub(refs, "InstrId", tx.instruction_id)
         if tx.end_to_end_id:
             sub(refs, "EndToEndId", tx.end_to_end_id)
-        if tx.account_servicer_ref:
-            sub(refs, "AcctSvcrRef", tx.account_servicer_ref)
     if tx.amount is not None and tx.currency:
         _build_amount(tx_dtls, "Amt", tx.amount, tx.currency)
     if tx.credit_debit is not None:
