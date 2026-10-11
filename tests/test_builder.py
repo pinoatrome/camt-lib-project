@@ -9,6 +9,7 @@ from camt import (
     EntryStatus,
     MessageType,
     Party,
+    ReturnInfo,
     Statement,
     TransactionDetails,
     build_bytes,
@@ -112,3 +113,29 @@ def test_party_bic_is_built_in_schema_02_form():
 
     assert b"<BICOrBEI>ACMEITMMXXX</BICOrBEI>" in xml_bytes
     assert b"AnyBIC" not in xml_bytes
+
+
+def _with_return_info(return_info: ReturnInfo) -> Document:
+    document = _sample_document()
+    document.statements[0].entries[0].transaction_details[0].return_info = return_info
+    return document
+
+
+def test_return_info_round_trips():
+    reparsed = parse_bytes(build_bytes(_with_return_info(ReturnInfo(reason_code="AC04", additional_info="Closed"))))
+
+    tx = reparsed.statements[0].entries[0].transaction_details[0]
+    assert tx.is_return is True
+    assert tx.return_info == ReturnInfo(reason_code="AC04", additional_info="Closed")
+
+
+def test_a_proprietary_return_reason_round_trips():
+    xml_bytes = build_bytes(_with_return_info(ReturnInfo(reason_proprietary="DESP-TIMEOUT")))
+
+    assert b"<Prtry>DESP-TIMEOUT</Prtry>" in xml_bytes
+    tx = parse_bytes(xml_bytes).statements[0].entries[0].transaction_details[0]
+    assert tx.return_info == ReturnInfo(reason_proprietary="DESP-TIMEOUT")
+
+
+def test_a_payment_without_return_info_writes_none():
+    assert b"RtrInf" not in build_bytes(_sample_document())

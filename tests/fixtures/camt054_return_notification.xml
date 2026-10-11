@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A return (pacs.004) credited back to the payer: the returned payment's EndToEndId
+     and why it came back (RtrInf), here after an accepted recall (FOCR). -->
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.054.001.08">
+  <BkToCstmrDbtCdtNtfctn>
+    <GrpHdr>
+      <MsgId>NOTIF-RTR-0001</MsgId>
+      <CreDtTm>2026-10-11T09:31:00</CreDtTm>
+    </GrpHdr>
+    <Ntfctn>
+      <Id>NTFY-RTR-0001</Id>
+      <Acct>
+        <Id><Othr><Id>DEAN-IT-0001-ALPHA</Id></Othr></Id>
+      </Acct>
+      <Ntry>
+        <AcctSvcrRef>DESP-RT-0001</AcctSvcrRef>
+        <Amt Ccy="EUR">100.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><DtTm>2026-10-11T09:31:00</DtTm></BookgDt>
+        <NtryDtls>
+          <TxDtls>
+            <Refs>
+              <AcctSvcrRef>DESP-RT-0001</AcctSvcrRef>
+              <EndToEndId>E2E-PAY-0001</EndToEndId>
+            </Refs>
+            <Amt Ccy="EUR">100.00</Amt>
+            <CdtDbtInd>CRDT</CdtDbtInd>
+            <RltdPties>
+              <CdtrAcct><Id><Othr><Id>DEAN-IT-0003-GAMMA</Id></Othr></Id></CdtrAcct>
+            </RltdPties>
+            <RtrInf>
+              <Rsn><Cd>FOCR</Cd></Rsn>
+              <AddtlInf>Recall accepted:</AddtlInf>
+              <AddtlInf>payment made by mistake</AddtlInf>
+            </RtrInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+    </Ntfctn>
+  </BkToCstmrDbtCdtNtfctn>
+</Document>
