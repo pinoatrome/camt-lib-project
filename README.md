@@ -116,7 +116,9 @@ entries — so the generic `parse_*`/`build_*` functions and the `Document`,
   to the beneficiary's PSP), each with exactly one entry;
   `camt.camt054.parse_debit_credit_notification()` gives that single-entry view
   and exposes the entry's `EndToEndId` for matching back to the originating
-  pacs.008 payment.
+  pacs.008 payment. Its `TxDtls/Refs/MsgId`, when DESP sends it, is that
+  pacs.008's MsgId (`TransactionDetails.message_id`): the payee's PSP needs it to
+  refer to the payment, e.g. to return it.
 
   A payment sent back (a pacs.004 return) is notified the same way, with the
   returned payment's `EndToEndId` and why it came back: the transaction's

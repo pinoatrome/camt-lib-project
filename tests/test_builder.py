@@ -139,3 +139,18 @@ def test_a_proprietary_return_reason_round_trips():
 
 def test_a_payment_without_return_info_writes_none():
     assert b"RtrInf" not in build_bytes(_sample_document())
+
+
+def test_the_original_message_id_round_trips_in_refs_order():
+    document = _sample_document()
+    tx = document.statements[0].entries[0].transaction_details[0]
+    tx.message_id = "PSPPAY-0001"
+    tx.account_servicer_ref = "REF-1"
+    xml_bytes = build_bytes(document)
+
+    reparsed = parse_bytes(xml_bytes).statements[0].entries[0].transaction_details[0]
+    assert (reparsed.message_id, reparsed.account_servicer_ref) == ("PSPPAY-0001", "REF-1")
+    refs = xml_bytes[xml_bytes.index(b"<Refs>"):xml_bytes.index(b"</Refs>")]
+    order = [tag for tag in (b"<MsgId>", b"<AcctSvcrRef>", b"<InstrId>", b"<EndToEndId>") if tag in refs]
+    assert order == sorted(order, key=refs.index)
+    assert order[:2] == [b"<MsgId>", b"<AcctSvcrRef>"]
