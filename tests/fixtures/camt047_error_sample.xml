@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.047.001.05">
+<!-- A reservation query the reporter couldn't answer at all: an operational error. -->
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.047.001.08">
   <RtrRsvatn>
     <MsgHdr>
       <MsgId>RESP-0002</MsgId>
@@ -9,12 +10,12 @@
       </OrgnlBizQry>
     </MsgHdr>
     <RptOrErr>
-      <BizErr>
+      <OprlErr>
         <Err>
           <Prtry>NOT_FOUND</Prtry>
         </Err>
         <Desc>Account not found</Desc>
-      </BizErr>
+      </OprlErr>
     </RptOrErr>
   </RtrRsvatn>
 </Document>

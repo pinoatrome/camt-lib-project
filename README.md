@@ -186,20 +186,26 @@ A reservation is an amount an account holds aside against a specific purpose
 (e.g. a minimum reserve requirement, a standing facility) rather than the
 account's overall balance, which camt.003/004 report on instead.
 
-- **camt.046 — GetReservation.** An outbound request asking for an account's
-  current reservations, optionally filtered to one reservation type code
-  (e.g. `"MMR"`). Used to check how much of an account's balance is earmarked
-  and unavailable for ordinary payments.
-- **camt.047 — ReturnReservation.** The response to camt.046, listing each
-  matching reservation's type, amount/currency, status (`ACTV` / `CLSD`) and,
-  where applicable, its validity window (`from_date`/`to_date`).
-- **camt.048 — ModifyReservation.** An outbound instruction changing the
-  amount of one existing reservation, identified by account and reservation
-  type. Like camt.050 below, its synchronous response is a camt.025 Receipt
-  rather than a dedicated Return message.
-- **camt.049 — DeleteReservation.** An outbound instruction removing one
-  existing reservation entirely, identified the same way as camt.048 but
-  with no amount to carry; also answered with a camt.025 Receipt.
+- **camt.046 — GetReservation** (built at .001.08, the newest). An outbound
+  request asking for an account's current reservations, optionally filtered
+  to one reservation type (`CurRsvatnTp`: `Cd` for a code of up to 4
+  characters, e.g. `"MMR"`, else `Prtry`). Used to check how much of an
+  account's balance is earmarked and unavailable for ordinary payments.
+- **camt.047 — ReturnReservation** (any version read; .001.08 the newest). The
+  response to camt.046: either an operational error, or the current and
+  default reservations (`default`), each with its type, amount/currency,
+  status (`ENAB`, `DISA`, `DELD`, `REQD`, `BLKD`) and start (`from_date`;
+  ISO's reservation has no end, so `to_date` stays empty), or the error the
+  reporter gave about it (`error_code`).
+- **camt.048 — ModifyReservation** (built at .001.07). An outbound instruction
+  changing the amount of one existing reservation, identified by account and
+  reservation type (`RsvatnId/Cur`), the new amount in `NewRsvatnValSet`. Like
+  camt.050 below, its synchronous response is a camt.025 Receipt rather than a
+  dedicated Return message.
+- **camt.049 — DeleteReservation** (built at .001.07). An outbound instruction
+  removing one existing reservation entirely, identified the same way as
+  camt.048 (`CurRsvatn`) but with no amount to carry; also answered with a
+  camt.025 Receipt.
 
 ### Recall pair (camt.056 / camt.029)
 
@@ -258,8 +264,8 @@ Cash Management message set of the 2025/2026 catalogue, the newest version of ea
 family the library handles. A message in an older version is checked against the
 newest with its namespace changed to that version's.
 
-camt.052, camt.053, camt.054, camt.050, camt.025, camt.029 and camt.056 are
-valid. The other families aren't yet: their structure isn't ISO 20022's, and each
-is to be rewritten to its newest version (reservations, account and business day
-services). Until then their checks are marked `xfail(strict=True)`, with the
+camt.052, camt.053, camt.054, camt.050, camt.025, camt.046 to camt.049,
+camt.029 and camt.056 are valid. The account and business day services
+(camt.003 to camt.006, camt.018, camt.019) aren't yet: their structure isn't ISO
+20022's, and they're to be rewritten to their newest versions. Until then their checks are marked `xfail(strict=True)`, with the
 reason, so a fix makes the mark fail until it's removed.

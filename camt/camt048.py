@@ -1,4 +1,4 @@
-"""Build ISO 20022 camt.048.001.05 (ModifyReservation) request documents.
+"""Build ISO 20022 camt.048.001.07 (ModifyReservation) request documents.
 
 Like camt.050 (see `camt.camt050`), this is an outbound *instruction* rather
 than a Get/Return query -- it changes the amount of a reservation already
@@ -7,6 +7,9 @@ existing reservations) instead of asking for its current state. Like
 camt.050, its synchronous response is a camt.025 Receipt (see
 `camt.camt025`), so it's built here directly rather than through
 `camt.builder`.
+
+The reservation is named in `RsvatnId/Cur` (its type and account) and its new
+amount goes in `NewRsvatnValSet/Amt/AmtWthCcy`.
 """
 from __future__ import annotations
 
@@ -15,18 +18,12 @@ from datetime import datetime
 
 from lxml import etree
 
+from ._reservation import build_reservation_id
 from .builder import sub
 from .enums import iso20022_namespace
+from .exceptions import CamtError
 
-
-def _account_element(parent: etree._Element, account_id: str, id_type: str) -> None:
-    id_elem = sub(parent, "Id")
-    if id_type == "IBAN":
-        sub(id_elem, "IBAN", account_id)
-    else:
-        othr = sub(id_elem, "Othr")
-        sub(othr, "Id", account_id)
-        sub(sub(othr, "SchmeNm"), "Prtry", id_type)
+VARIANT = "001.07"
 
 
 def build_modify_reservation_request_element(
@@ -38,15 +35,18 @@ def build_modify_reservation_request_element(
     id_type: str = "IBAN",
     msg_id: str | None = None,
     creation_datetime: datetime | None = None,
-    schema_variant: str = "001.05",
+    schema_variant: str = VARIANT,
 ) -> etree._Element:
     """Build the `<Document>` tree for a camt.048 ModifyReservation request,
     changing the amount of one account's `reservation_type` reservation
     (e.g. "MMR" for a minimum reserve requirement) to `new_amount`.
 
     `id_type` selects how `account_id` is encoded, same as
-    `camt.camt003.build_get_account_request_element`.
+    `camt.camt003.build_get_account_request_element`. Raises `CamtError` for a
+    negative amount.
     """
+    if new_amount < 0:
+        raise CamtError(f"A reservation's amount can't be negative: {new_amount}")
     msg_id = msg_id or f"MODRSV-{uuid.uuid4().hex[:16].upper()}"
     created_at = (creation_datetime or datetime.now()).isoformat()
 
@@ -58,15 +58,9 @@ def build_modify_reservation_request_element(
     sub(msg_hdr, "MsgId", msg_id)
     sub(msg_hdr, "CreDtTm", created_at)
 
-    instr = sub(modfy_rsvatn, "RsvatnModfyInstr")
-    sub(instr, "MsgId", msg_id)
-    sub(instr, "CreDtTm", created_at)
-
-    _account_element(sub(instr, "AcctId"), account_id, id_type)
-    sub(sub(instr, "RsvatnTp"), "Cd", reservation_type)
-
-    new_amt = sub(instr, "NewRsvatnAmt", f"{new_amount:.2f}")
-    new_amt.set("Ccy", currency)
+    build_reservation_id(sub(modfy_rsvatn, "RsvatnId"), "Cur", account_id, reservation_type, id_type)
+    value_set = sub(modfy_rsvatn, "NewRsvatnValSet")
+    sub(sub(value_set, "Amt"), "AmtWthCcy", f"{new_amount:.2f}").set("Ccy", currency)
 
     return root
 
@@ -80,7 +74,7 @@ def build_modify_reservation_request_bytes(
     id_type: str = "IBAN",
     msg_id: str | None = None,
     creation_datetime: datetime | None = None,
-    schema_variant: str = "001.05",
+    schema_variant: str = VARIANT,
     pretty_print: bool = True,
 ) -> bytes:
     """Build a camt.048 ModifyReservation request as XML bytes."""
@@ -108,7 +102,7 @@ def build_modify_reservation_request_string(
     id_type: str = "IBAN",
     msg_id: str | None = None,
     creation_datetime: datetime | None = None,
-    schema_variant: str = "001.05",
+    schema_variant: str = VARIANT,
     pretty_print: bool = True,
 ) -> str:
     """Build a camt.048 ModifyReservation request as an XML string."""
