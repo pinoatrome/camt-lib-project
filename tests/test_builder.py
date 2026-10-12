@@ -1,8 +1,13 @@
+import re
 from datetime import date, datetime
 from decimal import Decimal
 
+import pytest
+from lxml import etree
+
 from camt import (
     Balance,
+    CamtError,
     CreditDebit,
     Document,
     Entry,
@@ -77,7 +82,7 @@ def _sample_document() -> Document:
 
 def test_build_produces_well_formed_xml_with_expected_namespace():
     xml_bytes = build_bytes(_sample_document())
-    assert b"urn:iso:std:iso:20022:tech:xsd:camt.053.001.02" in xml_bytes
+    assert b"urn:iso:std:iso:20022:tech:xsd:camt.053.001.14" in xml_bytes
     assert b"<MsgId>MSG-BUILD-1</MsgId>" in xml_bytes
 
 
@@ -108,11 +113,19 @@ def test_round_trip_parse_build_parse():
     assert stmt.account_owner == orig_stmt.account_owner
 
 
-def test_party_bic_is_built_in_schema_02_form():
+def test_party_bic_is_built_in_its_newer_form():
     xml_bytes = build_bytes(_sample_document())
 
-    assert b"<BICOrBEI>ACMEITMMXXX</BICOrBEI>" in xml_bytes
-    assert b"AnyBIC" not in xml_bytes
+    assert b"<AnyBIC>ACMEITMMXXX</AnyBIC>" in xml_bytes
+    assert b"BICOrBEI" not in xml_bytes
+
+
+def test_related_parties_are_built_in_pty():
+    root = etree.fromstring(build_bytes(_sample_document()))
+    ns = {"n": root.nsmap[None]}
+
+    assert root.xpath("//n:TxDtls/n:RltdPties/n:Dbtr/n:Pty/n:Nm/text()", namespaces=ns) == ["Widget Buyer Ltd"]
+    assert root.xpath("//n:TxDtls/n:RltdPties/n:DbtrAcct/n:Id/n:IBAN/text()", namespaces=ns) == ["GB29NWBK60161331926819"]
 
 
 def _with_return_info(return_info: ReturnInfo) -> Document:
@@ -154,3 +167,60 @@ def test_the_original_message_id_round_trips_in_refs_order():
     order = [tag for tag in (b"<MsgId>", b"<AcctSvcrRef>", b"<InstrId>", b"<EndToEndId>") if tag in refs]
     assert order == sorted(order, key=refs.index)
     assert order[:2] == [b"<MsgId>", b"<AcctSvcrRef>"]
+
+
+def _entry_xml(document: Document) -> etree._Element:
+    root = etree.fromstring(build_bytes(document, pretty_print=False))
+    return root.xpath("//n:Ntry", namespaces={"n": root.nsmap[None]})[0]
+
+
+@pytest.mark.parametrize("code, built", [
+    ("PMNT-RCDT-ESCT", "<BkTxCd><Domn><Cd>PMNT</Cd><Fmly><Cd>RCDT</Cd><SubFmlyCd>ESCT</SubFmlyCd></Fmly></Domn></BkTxCd>"),
+    ("PROP-CODE-1", "<BkTxCd><Prtry><Cd>PROP-CODE-1</Cd></Prtry></BkTxCd>"),
+    (None, "<BkTxCd/>"),
+])
+def test_bank_transaction_code_round_trips(code, built):
+    document = _sample_document()
+    document.statements[0].entries[0].bank_transaction_code = code
+
+    bk_tx_cd = _entry_xml(document).find("{*}BkTxCd")
+    assert re.sub(r' xmlns="[^"]*"', "", etree.tostring(bk_tx_cd).decode()) == built
+    assert parse_bytes(build_bytes(document)).statements[0].entries[0].bank_transaction_code == code
+
+
+def test_entry_status_is_a_code():
+    assert _entry_xml(_sample_document()).findtext("{*}Sts/{*}Cd") == "BOOK"
+
+
+def test_pagination_round_trips():
+    document = _sample_document()
+    document.page_number, document.last_page = 2, False
+
+    reparsed = parse_bytes(build_bytes(document))
+
+    assert (reparsed.page_number, reparsed.last_page) == (2, False)
+
+
+@pytest.mark.parametrize("page_number, last_page", [(1, None), (None, True)])
+def test_pagination_takes_both_values(page_number, last_page):
+    document = _sample_document()
+    document.page_number, document.last_page = page_number, last_page
+
+    with pytest.raises(CamtError, match="MsgPgntn takes both"):
+        build_bytes(document)
+
+
+def test_statement_period_takes_both_dates():
+    document = _sample_document()
+    document.statements[0].to_date = None
+
+    with pytest.raises(CamtError, match="FrToDt takes both"):
+        build_bytes(document)
+
+
+def test_a_notification_has_no_balances():
+    document = _sample_document()
+    document.message_type = MessageType.CAMT_054
+
+    with pytest.raises(CamtError, match="a camt.054 carries no balances"):
+        build_bytes(document)

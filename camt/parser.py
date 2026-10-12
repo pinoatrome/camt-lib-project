@@ -183,6 +183,12 @@ def _parse_party(pty_elem: etree._Element | None, acct_elem: etree._Element | No
     return Party(name=name, iban=iban, other_id=other_id, bic=bic)
 
 
+def _related_party(elem: etree._Element | None) -> etree._Element | None:
+    """A related party (`RltdPties/Dbtr`, `Cdtr`): in `Pty` since schema .04 (a
+    Party50Choice), the party itself in .02."""
+    return _child(elem, "Pty") if _child(elem, "Pty") is not None else elem
+
+
 def _parse_balance(bal_elem: etree._Element) -> Balance:
     tp = _path(bal_elem, "Tp", "CdOrPrtry")
     code = _text(_child(tp, "Cd")) or _text(_child(tp, "Prtry")) or "UNKN"
@@ -224,8 +230,8 @@ def _parse_transaction_details(tx_elem: etree._Element) -> TransactionDetails:
         message_id=_text(_child(refs, "MsgId")),
         remittance_info=_text(_child(rmt_inf, "Ustrd")),
         bank_transaction_code=_parse_bank_transaction_code(_child(tx_elem, "BkTxCd")),
-        debtor=_parse_party(_child(rltd_pties, "Dbtr"), _child(rltd_pties, "DbtrAcct")),
-        creditor=_parse_party(_child(rltd_pties, "Cdtr"), _child(rltd_pties, "CdtrAcct")),
+        debtor=_parse_party(_related_party(_child(rltd_pties, "Dbtr")), _child(rltd_pties, "DbtrAcct")),
+        creditor=_parse_party(_related_party(_child(rltd_pties, "Cdtr")), _child(rltd_pties, "CdtrAcct")),
         return_info=_parse_return_info(_child(tx_elem, "RtrInf")),
     )
 
