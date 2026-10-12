@@ -4,9 +4,11 @@ from decimal import Decimal
 
 import pytest
 
+from camt import CamtParseError
 from camt.camt004 import Camt004Response, parse_camt004
 
 FIXTURES = Path(__file__).parent / "fixtures"
+SUCCESS = (FIXTURES / "camt004_success_sample.xml").read_bytes()
 
 
 def test_parse_camt004_success_response():
@@ -64,15 +66,26 @@ def test_parse_camt004_error_response_has_no_account():
     assert result.error_description == "Account not found"
 
 
-def test_parse_camt004_missing_root_element_raises():
+def test_parse_camt004_not_a_camt004_raises():
     bogus = b'<?xml version="1.0"?><Document xmlns="urn:example"><SomethingElse/></Document>'
-    with pytest.raises(ValueError, match="RtrAcct"):
+    with pytest.raises(CamtParseError, match="camt.004"):
         parse_camt004(bogus)
 
 
-def test_parse_camt004_account_without_holding_balances_or_limit():
+def test_parse_camt004_operational_error():
+    xml = SUCCESS.split(b"<RptOrErr>")[0] + b"""<RptOrErr>
+      <OprlErr><Err><Cd>X020</Cd></Err><Desc>Service unavailable</Desc></OprlErr>
+    </RptOrErr></RtrAcct></Document>"""
+
+    result = parse_camt004(xml)
+
+    assert result.account is None
+    assert (result.error_code, result.error_description) == ("X020", "Service unavailable")
+
+
+def test_parse_camt004_account_without_balances_limit_or_status():
     xml = b"""<?xml version="1.0" encoding="UTF-8"?>
-<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.004.001.08">
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.004.001.10">
   <RtrAcct>
     <MsgHdr>
       <MsgId>RESP-0003</MsgId>
@@ -81,19 +94,11 @@ def test_parse_camt004_account_without_holding_balances_or_limit():
     <RptOrErr>
       <AcctRpt>
         <AcctId>
-          <Othr>
-            <Id>DEAN-IT-0003-GAMMA</Id>
-          </Othr>
+          <IBAN>IT60X0542811101000000999999</IBAN>
         </AcctId>
         <AcctOrErr>
           <Acct>
-            <Id>
-              <IBAN>IT60X0542811101000000999999</IBAN>
-            </Id>
             <Ccy>EUR</Ccy>
-            <Sts>
-              <Cd>SUSPENDED</Cd>
-            </Sts>
           </Acct>
         </AcctOrErr>
       </AcctRpt>
@@ -102,14 +107,33 @@ def test_parse_camt004_account_without_holding_balances_or_limit():
 </Document>"""
     result = parse_camt004(xml)
 
-    assert result.original_msg_id is None  # no <OrgnlBizInstr>
+    assert result.original_msg_id is None  # an alert: no <OrgnlBizQry>
     account = result.account
-    assert account.status == "SUSPENDED"
+    assert (account.dean, account.iban) == (None, "IT60X0542811101000000999999")
+    assert account.status is None
     assert account.balances == []
     assert account.hold_limit is None
     assert account.hold_limit_ccy is None
     assert account.psp_bic is None
     assert account.servicer_name is None
+
+
+def test_parse_camt004_debit_balance_is_negative():
+    xml = SUCCESS.replace(b"<CdtDbtInd>CRDT</CdtDbtInd>\n              <Tp>\n                <Cd>CLBD</Cd>",
+                          b"<CdtDbtInd>DBIT</CdtDbtInd>\n              <Tp>\n                <Cd>CLBD</Cd>")
+    assert xml != SUCCESS
+
+    assert parse_camt004(xml).account.closing_balance.amount == -1250.50
+
+
+def test_parse_camt004_any_version():
+    assert parse_camt004(SUCCESS.replace(b"camt.004.001.10", b"camt.004.001.08")).account.status == "ENABLED"
+
+
+def test_parse_camt004_status_in_any_namespace():
+    xml = SUCCESS.replace(b' xmlns="urn:desp:supplementary"', b"")
+
+    assert parse_camt004(xml).account.status == "ENABLED"
 
 
 def test_account_report_balance_lookup_by_type_code():

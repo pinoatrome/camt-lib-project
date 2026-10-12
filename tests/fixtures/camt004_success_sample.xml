@@ -1,71 +1,87 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.004.001.08">
+<!-- DESP's answer to a camt.003 GetAccount: the account by its DEAN, its IBAN as a
+     proxy, its holding limit (CurMulLmt), two balances, and its status in the
+     supplementary data, as ISO's account has no status element. -->
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.004.001.10">
   <RtrAcct>
     <MsgHdr>
       <MsgId>RESP-0001</MsgId>
       <CreDtTm>2026-09-02T10:00:00</CreDtTm>
-      <OrgnlBizInstr>
+      <OrgnlBizQry>
         <MsgId>REQ-0001</MsgId>
-      </OrgnlBizInstr>
+        <MsgNmId>camt.003.001.08</MsgNmId>
+      </OrgnlBizQry>
     </MsgHdr>
     <RptOrErr>
       <AcctRpt>
         <AcctId>
           <Othr>
             <Id>DEAN-IT-0001-ALPHA</Id>
+            <SchmeNm>
+              <Prtry>DEAN</Prtry>
+            </SchmeNm>
           </Othr>
         </AcctId>
         <AcctOrErr>
           <Acct>
-            <Id>
-              <IBAN>IT60X0542811101000000123456</IBAN>
-            </Id>
-            <Ccy>EUR</Ccy>
-            <Sts>
-              <Cd>ENABLED</Cd>
-            </Sts>
             <Tp>
               <Prtry>PAYM</Prtry>
             </Tp>
+            <Ccy>EUR</Ccy>
+            <Prxy>
+              <Tp>
+                <Prtry>IBAN</Prtry>
+              </Tp>
+              <Id>IT60X0542811101000000123456</Id>
+            </Prxy>
+            <CurMulLmt>
+              <Amt>
+                <AmtWthCcy Ccy="EUR">5000.00</AmtWthCcy>
+              </Amt>
+              <CdtDbtInd>CRDT</CdtDbtInd>
+            </CurMulLmt>
             <Ownr>
-              <FinInstnId>
-                <BICFI>PSPXITMMXXX</BICFI>
-                <Nm>Alpha PSP</Nm>
-              </FinInstnId>
+              <Nm>Alpha PSP</Nm>
+              <Id>
+                <OrgId>
+                  <AnyBIC>PSPXITMMXXX</AnyBIC>
+                </OrgId>
+              </Id>
             </Ownr>
             <Svcr>
               <FinInstnId>
                 <Nm>DESP Servicer</Nm>
               </FinInstnId>
             </Svcr>
-            <HldgBal>
+            <MulBal>
+              <Amt>1250.50</Amt>
+              <CdtDbtInd>CRDT</CdtDbtInd>
               <Tp>
-                <CdOrPrtry>
-                  <Cd>CLBD</Cd>
-                </CdOrPrtry>
+                <Cd>CLBD</Cd>
               </Tp>
-              <Amt Ccy="EUR">1250.50</Amt>
-              <Dt>
+              <ValDt>
                 <Dt>2026-09-01</Dt>
-              </Dt>
-            </HldgBal>
-            <HldgBal>
+              </ValDt>
+            </MulBal>
+            <MulBal>
+              <Amt>900.00</Amt>
+              <CdtDbtInd>CRDT</CdtDbtInd>
               <Tp>
-                <CdOrPrtry>
-                  <Prtry>AVLB</Prtry>
-                </CdOrPrtry>
+                <Prtry>AVLB</Prtry>
               </Tp>
-              <Amt Ccy="EUR">900.00</Amt>
-              <Dt>
+              <ValDt>
                 <DtTm>2026-09-02T09:00:00</DtTm>
-              </Dt>
-            </HldgBal>
-            <LmtBal>
-              <Amt Ccy="EUR">5000.00</Amt>
-            </LmtBal>
+              </ValDt>
+            </MulBal>
           </Acct>
         </AcctOrErr>
       </AcctRpt>
     </RptOrErr>
+    <SplmtryData>
+      <PlcAndNm>/Document/RtrAcct/RptOrErr/AcctRpt/AcctOrErr/Acct</PlcAndNm>
+      <Envlp>
+        <AcctSts xmlns="urn:desp:supplementary">ENABLED</AcctSts>
+      </Envlp>
+    </SplmtryData>
   </RtrAcct>
 </Document>

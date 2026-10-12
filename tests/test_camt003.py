@@ -7,7 +7,7 @@ from camt.camt003 import (
     build_get_account_request_string,
 )
 
-_NS = {"n": "urn:iso:std:iso:20022:tech:xsd:camt.003.001.02"}
+_NS = {"n": "urn:iso:std:iso:20022:tech:xsd:camt.003.001.08"}
 
 
 def test_build_get_account_request_bytes_is_well_formed_and_uses_camt003_namespace():
@@ -18,7 +18,7 @@ def test_build_get_account_request_bytes_is_well_formed_and_uses_camt003_namespa
     )
 
     root = etree.fromstring(xml)
-    assert root.tag == "{urn:iso:std:iso:20022:tech:xsd:camt.003.001.02}Document"
+    assert root.tag == "{urn:iso:std:iso:20022:tech:xsd:camt.003.001.08}Document"
 
 
 def test_build_get_account_request_carries_msg_id_and_iban():
@@ -26,7 +26,7 @@ def test_build_get_account_request_carries_msg_id_and_iban():
     root = etree.fromstring(xml)
 
     msg_id = root.find(".//n:MsgHdr/n:MsgId", namespaces=_NS)
-    iban = root.find(".//n:AcctId/n:EQ/n:Id/n:IBAN", namespaces=_NS)
+    iban = root.find(".//n:AcctId/n:EQ/n:IBAN", namespaces=_NS)
 
     assert msg_id.text == "MSGID-1"
     assert iban.text == "IT60X0542811101000000123456"

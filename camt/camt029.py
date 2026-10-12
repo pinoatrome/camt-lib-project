@@ -1,4 +1,4 @@
-"""Build and parse ISO 20022 camt.029.001.09 (ResolutionOfInvestigation): the answer to a recall.
+"""Build and parse ISO 20022 camt.029.001.14 (ResolutionOfInvestigation): the answer to a recall.
 
 The payee's PSP answers a camt.056 (`camt.camt056`) when it doesn't send the
 money back: refused (RJCR), with a reason — the customer refused (CUST), didn't
@@ -41,7 +41,7 @@ from .enums import iso20022_namespace
 from .exceptions import CamtError, CamtParseError
 from .parser import _child, _children, _path, _text
 
-_NAMESPACE = iso20022_namespace("camt.029", "001.09")
+_NAMESPACE = iso20022_namespace("camt.029", "001.14")
 
 # The case's outcome (Sts/Conf, ExternalInvestigationExecutionConfirmation1Code).
 CANCELLED = "CNCL"
@@ -123,7 +123,7 @@ def _check(resolution: ResolutionOfInvestigation) -> None:
 
 
 def build_resolution_element(resolution: ResolutionOfInvestigation) -> etree._Element:
-    """The `<Document>` tree of a camt.029.001.09. Raises `CamtError` if it isn't valid."""
+    """The `<Document>` tree of a camt.029.001.14. Raises `CamtError` if it isn't valid."""
     _check(resolution)
     root = etree.Element("Document", nsmap={None: _NAMESPACE})
     resolution_element = sub(root, "RsltnOfInvstgtn")
@@ -155,14 +155,14 @@ def build_resolution_element(resolution: ResolutionOfInvestigation) -> etree._El
 
 
 def build_resolution_bytes(resolution: ResolutionOfInvestigation, *, pretty_print: bool = True) -> bytes:
-    """The camt.029.001.09 XML of `resolution`, as bytes."""
+    """The camt.029.001.14 XML of `resolution`, as bytes."""
     return etree.tostring(
         build_resolution_element(resolution), xml_declaration=True, encoding="UTF-8", pretty_print=pretty_print,
     )
 
 
 def build_resolution_string(resolution: ResolutionOfInvestigation, *, pretty_print: bool = True) -> str:
-    """The camt.029.001.09 XML of `resolution`, as a string."""
+    """The camt.029.001.14 XML of `resolution`, as a string."""
     return build_resolution_bytes(resolution, pretty_print=pretty_print).decode("utf-8")
 
 

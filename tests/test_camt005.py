@@ -1,7 +1,9 @@
 from datetime import datetime
 
+import pytest
 from lxml import etree
 
+from camt import CamtError
 from camt.camt005 import (
     build_get_transaction_delta_request_bytes,
     build_get_transaction_delta_request_string,
@@ -9,7 +11,7 @@ from camt.camt005 import (
     build_get_transaction_request_string,
 )
 
-_NS = {"n": "urn:iso:std:iso:20022:tech:xsd:camt.005.001.06"}
+_NS = {"n": "urn:iso:std:iso:20022:tech:xsd:camt.005.001.11"}
 
 
 def test_build_get_transaction_request_is_well_formed_and_uses_camt005_namespace():
@@ -20,7 +22,7 @@ def test_build_get_transaction_request_is_well_formed_and_uses_camt005_namespace
     )
 
     root = etree.fromstring(xml)
-    assert root.tag == "{urn:iso:std:iso:20022:tech:xsd:camt.005.001.06}Document"
+    assert root.tag == "{urn:iso:std:iso:20022:tech:xsd:camt.005.001.11}Document"
 
 
 def test_build_get_transaction_request_carries_msg_id_and_iban():
@@ -28,7 +30,7 @@ def test_build_get_transaction_request_carries_msg_id_and_iban():
     root = etree.fromstring(xml)
 
     msg_id = root.find(".//n:MsgHdr/n:MsgId", namespaces=_NS)
-    iban = root.find(".//n:NewCrit/n:SchCrit/n:AcctId/n:EQ/n:Id/n:IBAN", namespaces=_NS)
+    iban = root.find(".//n:NewCrit/n:SchCrit/n:AcctNtrySch/n:AcctId/n:EQ/n:IBAN", namespaces=_NS)
 
     assert msg_id.text == "MSGID-1"
     assert iban.text == "IT60X0542811101000000123456"
@@ -40,8 +42,8 @@ def test_build_get_transaction_request_encodes_proprietary_account_id():
     )
     root = etree.fromstring(xml)
 
-    othr_id = root.find(".//n:AcctId/n:EQ/n:Id/n:Othr/n:Id", namespaces=_NS)
-    scheme = root.find(".//n:AcctId/n:EQ/n:Id/n:Othr/n:SchmeNm/n:Prtry", namespaces=_NS)
+    othr_id = root.find(".//n:AcctNtrySch/n:AcctId/n:EQ/n:Othr/n:Id", namespaces=_NS)
+    scheme = root.find(".//n:AcctNtrySch/n:AcctId/n:EQ/n:Othr/n:SchmeNm/n:Prtry", namespaces=_NS)
 
     assert othr_id.text == "DEAN-IT-0001-ALPHA"
     assert scheme.text == "DEAN"
@@ -57,9 +59,9 @@ def test_build_get_transaction_request_applies_optional_filters():
     )
     root = etree.fromstring(xml)
 
-    fr_dt = root.find(".//n:SchCrit/n:FrToDt/n:FrDtTm", namespaces=_NS)
-    to_dt = root.find(".//n:SchCrit/n:FrToDt/n:ToDtTm", namespaces=_NS)
-    status = root.find(".//n:SchCrit/n:EntrySts/n:Cd", namespaces=_NS)
+    fr_dt = root.find(".//n:AcctNtrySch/n:NtryDt/n:DtTmSch/n:DtTmRg/n:FrDtTm", namespaces=_NS)
+    to_dt = root.find(".//n:AcctNtrySch/n:NtryDt/n:DtTmSch/n:DtTmRg/n:ToDtTm", namespaces=_NS)
+    status = root.find(".//n:AcctNtrySch/n:NtrySts", namespaces=_NS)
 
     assert fr_dt.text == "2026-09-01T00:00:00"
     assert to_dt.text == "2026-09-02T00:00:00"
@@ -70,8 +72,8 @@ def test_build_get_transaction_request_without_filters_omits_them():
     xml = build_get_transaction_request_bytes("IT60X0542811101000000123456", "MSGID-1")
     root = etree.fromstring(xml)
 
-    assert root.find(".//n:FrToDt", namespaces=_NS) is None
-    assert root.find(".//n:EntrySts", namespaces=_NS) is None
+    assert root.find(".//n:NtryDt", namespaces=_NS) is None
+    assert root.find(".//n:NtrySts", namespaces=_NS) is None
     assert root.find(".//n:NewQryNm", namespaces=_NS) is None
 
 
@@ -103,7 +105,7 @@ def test_build_get_transaction_delta_request_references_query_name_only():
     )
     root = etree.fromstring(xml)
 
-    qry_nm = root.find(".//n:TxCrit/n:SchCrit/n:QryNm", namespaces=_NS)
+    qry_nm = root.find("n:GetTx/n:TxQryDef/n:TxCrit/n:QryNm", namespaces=_NS)
     msg_id = root.find(".//n:MsgHdr/n:MsgId", namespaces=_NS)
 
     assert qry_nm.text == "DAILY-RECON"
@@ -123,3 +125,29 @@ def test_build_get_transaction_delta_request_string_matches_bytes_decoded():
     )
 
     assert xml_string == xml_bytes.decode("utf-8")
+
+
+def test_build_get_transaction_request_with_one_end_of_the_window():
+    root = etree.fromstring(build_get_transaction_request_bytes(
+        "IT60X0542811101000000123456", "MSGID-3", from_datetime=datetime(2026, 9, 1),
+    ))
+
+    assert root.findtext(".//n:NtryDt/n:DtTmSch/n:FrDtTm", namespaces=_NS) == "2026-09-01T00:00:00"
+    assert root.find(".//n:DtTmRg", namespaces=_NS) is None
+
+
+def test_build_get_transaction_request_refuses_an_unknown_entry_status():
+    with pytest.raises(CamtError, match="BOOK, PDNG, FUTR"):
+        build_get_transaction_request_bytes("IT60X0542811101000000123456", "MSGID-3", entry_status="RJCT")
+
+
+@pytest.mark.parametrize("query_type", ["CHNG", "MODF", "DELD", "ALLL"])
+def test_build_get_transaction_delta_request_says_which_changes(query_type):
+    root = etree.fromstring(build_get_transaction_delta_request_bytes("DAILY-RECON", "MSGID-4", query_type=query_type))
+
+    assert root.findtext("n:GetTx/n:TxQryDef/n:QryTp", namespaces=_NS) == query_type
+
+
+def test_build_get_transaction_delta_request_refuses_an_unknown_query_type():
+    with pytest.raises(CamtError, match="query type"):
+        build_get_transaction_delta_request_bytes("DAILY-RECON", "MSGID-4", query_type="NEWW")

@@ -19,7 +19,7 @@ from camt.camt029 import (
 from camt.exceptions import CamtError, CamtParseError
 
 FIXTURES = Path(__file__).parent / "fixtures"
-_NS = {"n": "urn:iso:std:iso:20022:tech:xsd:camt.029.001.09"}
+_NS = {"n": "urn:iso:std:iso:20022:tech:xsd:camt.029.001.14"}
 
 
 def _resolution(**changes) -> ResolutionOfInvestigation:
@@ -46,7 +46,7 @@ def _resolution(**changes) -> ResolutionOfInvestigation:
 def test_build_refuses_the_recall_with_its_reason():
     root = etree.fromstring(build_resolution_bytes(_resolution()))
 
-    assert root.tag == "{urn:iso:std:iso:20022:tech:xsd:camt.029.001.09}Document"
+    assert root.tag == "{urn:iso:std:iso:20022:tech:xsd:camt.029.001.14}Document"
     resolution = root.find("n:RsltnOfInvstgtn", _NS)
     assert [etree.QName(child).localname for child in resolution] == ["Assgnmt", "RslvdCase", "Sts", "CxlDtls"]
     assert resolution.findtext("n:Sts/n:Conf", namespaces=_NS) == "RJCR"
@@ -106,7 +106,7 @@ def test_a_pending_answer_needs_no_reason():
     [
         ((b"<Conf>RJCR</Conf>", b""), "Missing Sts/Conf"),
         ((b"<TxCxlSts>PDCR</TxCxlSts>", b""), "Missing TxCxlSts"),
-        ((b"camt.029.001.09", b"camt.056.001.08"), "Not a camt.029 Document"),
+        ((b"camt.029.001.14", b"camt.056.001.12"), "Not a camt.029 Document"),
     ],
     ids=["no-case-status", "no-payment-status", "other-message"],
 )

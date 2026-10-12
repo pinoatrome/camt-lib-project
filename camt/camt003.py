@@ -1,4 +1,4 @@
-"""Build ISO 20022 camt.003.001.02 (GetAccount) request documents.
+"""Build ISO 20022 camt.003.001.08 (GetAccount) request documents.
 
 The `camt.parser`/`camt.builder` pair only parses/builds camt.052/053/054
 (bank-to-customer *reports*). camt.003 is the outbound *request* half of the
@@ -7,6 +7,9 @@ shape with its own module here. Its counterpart camt.004 (see `camt.camt004`)
 carries the response to that request, but can also arrive unsolicited as an
 account alert; either way, it's built/parsed directly rather than through
 that pair.
+
+The query is `AcctQryDef/AcctCrit/NewCrit/SchCrit/AcctId/EQ`: the account,
+as `IBAN` or `Othr` (AccountIdentification4Choice).
 """
 from __future__ import annotations
 
@@ -17,6 +20,8 @@ from lxml import etree
 from .builder import sub
 from .enums import iso20022_namespace
 
+VARIANT = "001.08"
+
 
 def build_get_account_request_element(
     account_id: str,
@@ -24,7 +29,7 @@ def build_get_account_request_element(
     *,
     id_type: str = "IBAN",
     creation_datetime: datetime | None = None,
-    schema_variant: str = "001.02",
+    schema_variant: str = VARIANT,
 ) -> etree._Element:
     """Build the `<Document>` tree for a camt.003 GetAccount request, querying one account's state.
 
@@ -42,7 +47,7 @@ def build_get_account_request_element(
 
     new_crit = sub(sub(sub(get_acct, "AcctQryDef"), "AcctCrit"), "NewCrit")
     sch_crit = sub(new_crit, "SchCrit")
-    id_elem = sub(sub(sub(sch_crit, "AcctId"), "EQ"), "Id")
+    id_elem = sub(sub(sch_crit, "AcctId"), "EQ")
     if id_type == "IBAN":
         sub(id_elem, "IBAN", account_id)
     else:
@@ -59,7 +64,7 @@ def build_get_account_request_bytes(
     *,
     id_type: str = "IBAN",
     creation_datetime: datetime | None = None,
-    schema_variant: str = "001.02",
+    schema_variant: str = VARIANT,
     pretty_print: bool = True,
 ) -> bytes:
     """Build a camt.003 GetAccount request, to query an account's current state, as XML bytes."""
@@ -81,7 +86,7 @@ def build_get_account_request_string(
     *,
     id_type: str = "IBAN",
     creation_datetime: datetime | None = None,
-    schema_variant: str = "001.02",
+    schema_variant: str = VARIANT,
     pretty_print: bool = True,
 ) -> str:
     """Build a camt.003 GetAccount request, to query an account's current state, as an XML string."""

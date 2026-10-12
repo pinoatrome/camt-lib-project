@@ -7,7 +7,7 @@ from camt.camt018 import (
     build_get_business_day_request_string,
 )
 
-_NS = {"n": "urn:iso:std:iso:20022:tech:xsd:camt.018.001.04"}
+_NS = {"n": "urn:iso:std:iso:20022:tech:xsd:camt.018.001.05"}
 
 
 def test_build_get_business_day_request_is_well_formed_and_uses_camt018_namespace():
@@ -18,7 +18,7 @@ def test_build_get_business_day_request_is_well_formed_and_uses_camt018_namespac
     )
 
     root = etree.fromstring(xml)
-    assert root.tag == "{urn:iso:std:iso:20022:tech:xsd:camt.018.001.04}Document"
+    assert root.tag == "{urn:iso:std:iso:20022:tech:xsd:camt.018.001.05}Document"
 
 
 def test_build_get_business_day_request_carries_msg_id_and_system_id():
@@ -26,7 +26,7 @@ def test_build_get_business_day_request_carries_msg_id_and_system_id():
     root = etree.fromstring(xml)
 
     msg_id = root.find(".//n:MsgHdr/n:MsgId", namespaces=_NS)
-    sys_id = root.find(".//n:SchCrit/n:SysId/n:Cd", namespaces=_NS)
+    sys_id = root.find(".//n:SchCrit/n:SysId/n:MktInfrstrctrId/n:Prtry", namespaces=_NS)
 
     assert msg_id.text == "MSGID-1"
     assert sys_id.text == "TARGET2"
@@ -67,3 +67,17 @@ def test_build_get_business_day_request_string_matches_bytes_decoded():
     xml_bytes = build_get_business_day_request_bytes("TARGET2", "MSGID-1", **kwargs)
 
     assert xml_string == xml_bytes.decode("utf-8")
+
+
+def test_build_get_business_day_request_names_a_longer_system_as_proprietary():
+    root = etree.fromstring(build_get_business_day_request_bytes("TARGET2", "REQ-9"))
+
+    assert root.findtext(".//n:SchCrit/n:SysId/n:MktInfrstrctrId/n:Prtry", namespaces=_NS) == "TARGET2"
+
+
+def test_build_get_business_day_request_puts_the_date_before_the_system():
+    from datetime import date
+
+    root = etree.fromstring(build_get_business_day_request_bytes("CLM", "REQ-9", business_date=date(2026, 9, 25)))
+
+    assert [etree.QName(child).localname for child in root.find(".//n:SchCrit", namespaces=_NS)] == ["SysDt", "SysId"]

@@ -1,4 +1,4 @@
-"""Parse ISO 20022 camt.004.001.08 (ReturnAccount) messages.
+"""Parse ISO 20022 camt.004 (ReturnAccount) messages.
 
 camt.004 usually arrives as the response half of the camt.003 GetAccount
 request/response pair (see `camt.camt003`), but the same message shape is also
@@ -6,6 +6,22 @@ pushed unsolicited as an account alert (e.g. a status change), independent of
 any request. Either way it's not one of the bank-to-customer *report* messages
 (camt.052/053/054) that `camt.parser`/`camt.builder` target, so it's parsed
 here directly rather than through the library's parser.
+
+A message is `RtrAcct`: a `MsgHdr` naming the query it answers
+(`OrgnlBizQry/MsgId`, absent from an alert), then `RptOrErr`, either an
+operational error (`OprlErr`) or an account report (`AcctRpt`): the account
+(`AcctId`: `IBAN` or `Othr/Id`, the DEAN) and either its data (`AcctOrErr/Acct`)
+or an error about it (`AcctOrErr/BizErr`). The data: the account's type
+(`Tp`), currency (`Ccy`), its limit (`CurMulLmt`, the holding limit), owner
+(`Ownr`: name and `Id/OrgId/AnyBIC`), servicer (`Svcr`) and balances (`MulBal`,
+signed by `CdtDbtInd`, in the account's currency).
+
+ISO's account has no element for two things DESP tells: the account's IBAN
+next to its DEAN, read from the proxy (`Acct/Prxy` with type `IBAN`), and its
+status (ENABLED, BLOCKED, ...), read from the supplementary data
+(`SplmtryData/Envlp/AcctSts`, in any namespace). Parsing matches elements by
+local name, so any camt.004 version reads; the library's checks use .001.10,
+the newest.
 """
 from __future__ import annotations
 
@@ -14,10 +30,14 @@ from decimal import Decimal
 
 from lxml import etree
 
-from .enums import iso20022_namespace
+from ._investigation import read_root
+from .exceptions import CamtParseError
+from .parser import _child, _children, _path, _text
 
-_NAMESPACE = iso20022_namespace("camt.004", "001.08")
-_NS_PREFIX = f"{{{_NAMESPACE}}}"
+# The supplementary data element carrying the account's status, and the proxy
+# type naming its IBAN.
+ACCOUNT_STATUS = "AcctSts"
+IBAN_PROXY = "IBAN"
 
 
 @dataclass
@@ -35,7 +55,7 @@ class AccountReport:
     dean: str | None
     iban: str | None
     currency: str | None
-    status: str | None  # ENABLED | BLOCKED | SUSPENDED
+    status: str | None  # ENABLED | BLOCKED | SUSPENDED, from SplmtryData/Envlp/AcctSts
     psp_bic: str | None
     psp_name: str | None
     servicer_name: str | None
@@ -66,10 +86,10 @@ class AccountReport:
 
 @dataclass
 class Camt004Response:
-    """Top-level parsed camt.004.001.08 ReturnAccount message.
+    """Top-level parsed camt.004 ReturnAccount message.
 
     `original_msg_id` is the camt.003 request's message ID when this is a
-    response, and None for an unsolicited alert (no `<OrgnlBizInstr>`).
+    response, and None for an unsolicited alert (no `<OrgnlBizQry>`).
     """
 
     response_msg_id: str | None
@@ -80,96 +100,103 @@ class Camt004Response:
     error_description: str | None = None
 
 
-def _tag(name: str) -> str:
-    return f"{_NS_PREFIX}{name}"
+def _choice(element: etree._Element | None) -> str | None:
+    """The code of a Cd/Prtry choice."""
+    return _text(_child(element, "Cd")) or _text(_child(element, "Prtry"))
 
 
-def _text(el: etree._Element | None, path: str) -> str | None:
-    if el is None:
+def _number(value: str | None, what: str) -> float | None:
+    if value is None:
         return None
-    found = el.find(path)
-    return found.text if found is not None else None
+    try:
+        return float(value)
+    except ValueError as exc:
+        raise CamtParseError(f"Invalid {what}: {value!r}") from exc
+
+
+def _error(element: etree._Element) -> tuple[str | None, str | None]:
+    """ErrorHandling5: the code (`Err/Cd` or `Err/Prtry`) and its description."""
+    return _choice(_child(element, "Err")), _text(_child(element, "Desc"))
+
+
+def _balance(element: etree._Element, currency: str) -> Balance:
+    """A `MulBal` (CashBalance13): its amount is in the account's currency, negative for a debit."""
+    amount = _number(_text(_child(element, "Amt")), "balance amount") or 0.0
+    if _text(_child(element, "CdtDbtInd")) == "DBIT":
+        amount = -amount
+    value_date = _child(element, "ValDt")
+    return Balance(
+        type_code=_choice(_child(element, "Tp")),
+        amount=amount,
+        currency=currency,
+        date=_text(_child(value_date, "Dt")) or _text(_child(value_date, "DtTm")),
+    )
+
+
+def _status(message: etree._Element) -> str | None:
+    """The account's status, from the supplementary data (`Envlp/AcctSts`)."""
+    for supplementary in _children(message, "SplmtryData"):
+        envelope = _child(supplementary, "Envlp")
+        for element in envelope if envelope is not None else []:
+            if isinstance(element.tag, str) and etree.QName(element).localname == ACCOUNT_STATUS:
+                return _text(element)
+    return None
 
 
 def parse_camt004(xml_bytes: bytes) -> Camt004Response:
-    """Parse a camt.004.001.08 ReturnAccount message (a GetAccount response or an
-    unsolicited account alert) into a `Camt004Response`."""
-    root = etree.fromstring(xml_bytes)
-    rtr = root.find(_tag("RtrAcct"))
-    if rtr is None:
-        raise ValueError("Root element <RtrAcct> not found in camt.004 response")
+    """Parse a camt.004 ReturnAccount message (any version: a GetAccount response or
+    an unsolicited account alert) into a `Camt004Response`, from its first account
+    report. Raises `CamtParseError` if it isn't a readable one."""
+    message = read_root(xml_bytes, "camt.004", "RtrAcct")
+    header = _child(message, "MsgHdr")
+    common = {
+        "response_msg_id": _text(_child(header, "MsgId")),
+        "original_msg_id": _text(_path(header, "OrgnlBizQry", "MsgId")),
+        "created_at": _text(_child(header, "CreDtTm")),
+    }
+    report_or_error = _child(message, "RptOrErr")
+    if report_or_error is None:
+        raise CamtParseError("No <RptOrErr> in the camt.004 message.")
 
-    hdr = rtr.find(_tag("MsgHdr"))
-    resp_msg_id = _text(hdr, _tag("MsgId"))
-    created_at = _text(hdr, _tag("CreDtTm"))
-    orig_instr = hdr.find(_tag("OrgnlBizInstr")) if hdr is not None else None
-    orig_msg_id = _text(orig_instr, _tag("MsgId")) if orig_instr is not None else None
+    operational = _child(report_or_error, "OprlErr")
+    if operational is not None:
+        code, description = _error(operational)
+        return Camt004Response(**common, error_code=code, error_description=description)
 
-    rpt_or_err = rtr.find(_tag("RptOrErr"))
+    report = _child(report_or_error, "AcctRpt")
+    if report is None:
+        raise CamtParseError("Neither <AcctRpt> nor <OprlErr> in the camt.004 message.")
+    business = _path(report, "AcctOrErr", "BizErr")
+    if business is not None:
+        code, description = _error(business)
+        return Camt004Response(**common, error_code=code, error_description=description)
+    account = _path(report, "AcctOrErr", "Acct")
+    if account is None:
+        raise CamtParseError("Neither <Acct> nor <BizErr> in the camt.004 account report.")
 
-    biz_err = rpt_or_err.find(_tag("BizErr")) if rpt_or_err is not None else None
-    if biz_err is not None:
-        err_code = _text(biz_err, f"{_tag('Err')}/{_tag('Prtry')}")
-        err_desc = _text(biz_err, _tag("Desc"))
-        return Camt004Response(
-            response_msg_id=resp_msg_id,
-            original_msg_id=orig_msg_id,
-            created_at=created_at,
-            error_code=err_code,
-            error_description=err_desc,
-        )
-
-    acct_rpt = rpt_or_err.find(_tag("AcctRpt"))
-    acct_el = acct_rpt.find(f"{_tag('AcctOrErr')}/{_tag('Acct')}")
-
-    dean = _text(acct_rpt, f"{_tag('AcctId')}/{_tag('Othr')}/{_tag('Id')}")
-    iban = _text(acct_el, f"{_tag('Id')}/{_tag('IBAN')}")
-    ccy = _text(acct_el, _tag("Ccy"))
-    status = _text(acct_el, f"{_tag('Sts')}/{_tag('Cd')}")
-
-    owner = acct_el.find(f"{_tag('Ownr')}/{_tag('FinInstnId')}")
-    psp_bic = _text(owner, _tag("BICFI")) if owner is not None else None
-    psp_name = _text(owner, _tag("Nm")) if owner is not None else None
-
-    svcr = acct_el.find(f"{_tag('Svcr')}/{_tag('FinInstnId')}")
-    servicer_name = _text(svcr, _tag("Nm")) if svcr is not None else None
-
-    account_type = _text(acct_el, f"{_tag('Tp')}/{_tag('Prtry')}")
-
-    balances: list[Balance] = []
-    for bal_el in acct_el.findall(_tag("HldgBal")):
-        type_code = _text(
-            bal_el, f"{_tag('Tp')}/{_tag('CdOrPrtry')}/{_tag('Cd')}"
-        ) or _text(bal_el, f"{_tag('Tp')}/{_tag('CdOrPrtry')}/{_tag('Prtry')}")
-        amt_el = bal_el.find(_tag("Amt"))
-        amount = float(amt_el.text) if amt_el is not None else 0.0
-        currency = amt_el.get("Ccy", "") if amt_el is not None else ""
-        date = _text(bal_el, f"{_tag('Dt')}/{_tag('Dt')}") or _text(
-            bal_el, f"{_tag('Dt')}/{_tag('DtTm')}"
-        )
-        balances.append(Balance(type_code=type_code, amount=amount, currency=currency, date=date))
-
-    lmt_el = acct_el.find(f"{_tag('LmtBal')}/{_tag('Amt')}")
-    hold_limit = float(lmt_el.text) if lmt_el is not None else None
-    hold_limit_ccy = lmt_el.get("Ccy") if lmt_el is not None else None
-
-    account = AccountReport(
-        dean=dean,
-        iban=iban,
-        currency=ccy,
-        status=status,
-        psp_bic=psp_bic,
-        psp_name=psp_name,
-        servicer_name=servicer_name,
-        account_type=account_type,
-        balances=balances,
-        hold_limit=hold_limit,
-        hold_limit_ccy=hold_limit_ccy,
-    )
+    account_id = _child(report, "AcctId")
+    proxy = _child(account, "Prxy")
+    proxy_iban = _text(_child(proxy, "Id")) if _choice(_child(proxy, "Tp")) == IBAN_PROXY else None
+    currency = _text(_child(account, "Ccy"))
+    owner = _child(account, "Ownr")
+    limit = _path(account, "CurMulLmt", "Amt")
+    limit_amount = _child(limit, "AmtWthCcy")
+    if limit_amount is None:
+        limit_amount = _child(limit, "AmtWthtCcy")
 
     return Camt004Response(
-        response_msg_id=resp_msg_id,
-        original_msg_id=orig_msg_id,
-        created_at=created_at,
-        account=account,
+        **common,
+        account=AccountReport(
+            dean=_text(_path(account_id, "Othr", "Id")),
+            iban=_text(_child(account_id, "IBAN")) or proxy_iban,
+            currency=currency,
+            status=_status(message),
+            psp_bic=_text(_path(owner, "Id", "OrgId", "AnyBIC")),
+            psp_name=_text(_child(owner, "Nm")),
+            servicer_name=_text(_path(account, "Svcr", "FinInstnId", "Nm")),
+            account_type=_choice(_child(account, "Tp")),
+            balances=[_balance(b, currency or "") for b in _children(account, "MulBal")],
+            hold_limit=_number(_text(limit_amount), "holding limit"),
+            hold_limit_ccy=(limit_amount.get("Ccy") or currency) if limit_amount is not None else None,
+        ),
     )

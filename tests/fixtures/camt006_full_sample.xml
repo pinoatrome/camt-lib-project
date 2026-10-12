@@ -1,53 +1,90 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.006.001.08">
+<!-- The answer to a named camt.005 query: the account's two transactions. -->
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.006.001.11">
   <RtrTx>
     <MsgHdr>
       <MsgId>RESP-0001</MsgId>
       <CreDtTm>2026-09-02T10:00:00</CreDtTm>
       <OrgnlBizQry>
         <MsgId>REQ-0001</MsgId>
-        <QryNm>DAILY-RECON</QryNm>
+        <MsgNmId>camt.005.001.11</MsgNmId>
       </OrgnlBizQry>
+      <QryNm>DAILY-RECON</QryNm>
     </MsgHdr>
     <RptOrErr>
-      <TxRpt>
-        <QryNm>DAILY-RECON</QryNm>
-        <TxRptOrErr>
-          <TxRpt>
-            <New>
-              <TxDtls>
-                <Refs>
-                  <TxId>TX-0001</TxId>
-                  <EndToEndId>E2E-0001</EndToEndId>
-                </Refs>
-                <Amt Ccy="EUR">150.00</Amt>
-                <CdtDbtInd>CRDT</CdtDbtInd>
+      <BizRpt>
+        <TxRpt>
+          <PmtId>
+            <TxId>TX-0001</TxId>
+          </PmtId>
+          <TxOrErr>
+            <Tx>
+              <CdtDbtInd>CRDT</CdtDbtInd>
+              <Pmt>
                 <Sts>
-                  <Cd>BOOK</Cd>
+                  <Cd>
+                    <Fnl>STLD</Fnl>
+                  </Cd>
                 </Sts>
-                <BookgDt>
-                  <Dt>2026-09-01</Dt>
-                </BookgDt>
-                <AddtlTxInf>Invoice 1001</AddtlTxInf>
-              </TxDtls>
-              <TxDtls>
-                <Refs>
-                  <TxId>TX-0002</TxId>
-                  <EndToEndId>E2E-0002</EndToEndId>
-                </Refs>
-                <Amt Ccy="EUR">75.50</Amt>
-                <CdtDbtInd>DBIT</CdtDbtInd>
+                <IntrBkSttlmAmt>
+                  <AmtWthCcy Ccy="EUR">150.00</AmtWthCcy>
+                </IntrBkSttlmAmt>
+                <EndToEndId>E2E-0001</EndToEndId>
+              </Pmt>
+              <AcctNtry>
+                <Acct>
+                  <Id>
+                    <IBAN>IT60X0542811101000000123456</IBAN>
+                  </Id>
+                </Acct>
+                <Ntry>
+                  <Amt Ccy="EUR">150.00</Amt>
+                  <Dt>
+                    <Dt>2026-09-01</Dt>
+                  </Dt>
+                  <Sts>BOOK</Sts>
+                  <AddtlNtryInf>Invoice 1001</AddtlNtryInf>
+                </Ntry>
+              </AcctNtry>
+            </Tx>
+          </TxOrErr>
+        </TxRpt>
+        <TxRpt>
+          <PmtId>
+            <TxId>TX-0002</TxId>
+          </PmtId>
+          <TxOrErr>
+            <Tx>
+              <CdtDbtInd>DBIT</CdtDbtInd>
+              <Pmt>
                 <Sts>
-                  <Cd>BOOK</Cd>
+                  <Cd>
+                    <Fnl>STLD</Fnl>
+                  </Cd>
                 </Sts>
-                <BookgDt>
-                  <Dt>2026-09-02</Dt>
-                </BookgDt>
-              </TxDtls>
-            </New>
-          </TxRpt>
-        </TxRptOrErr>
-      </TxRpt>
+                <IntrBkSttlmAmt>
+                  <AmtWthCcy Ccy="EUR">75.50</AmtWthCcy>
+                </IntrBkSttlmAmt>
+                <EndToEndId>E2E-0002</EndToEndId>
+              </Pmt>
+              <AcctNtry>
+                <Acct>
+                  <Id>
+                    <IBAN>IT60X0542811101000000123456</IBAN>
+                  </Id>
+                </Acct>
+                <Ntry>
+                  <Amt Ccy="EUR">75.50</Amt>
+                  <Dt>
+                    <Dt>2026-09-02</Dt>
+                  </Dt>
+                  <Sts>BOOK</Sts>
+                </Ntry>
+              </AcctNtry>
+            </Tx>
+          </TxOrErr>
+        </TxRpt>
+      </BizRpt>
     </RptOrErr>
   </RtrTx>
 </Document>

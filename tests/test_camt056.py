@@ -17,7 +17,7 @@ from camt.camt056 import (
 from camt.exceptions import CamtError, CamtParseError
 
 FIXTURES = Path(__file__).parent / "fixtures"
-_NS = {"n": "urn:iso:std:iso:20022:tech:xsd:camt.056.001.08"}
+_NS = {"n": "urn:iso:std:iso:20022:tech:xsd:camt.056.001.12"}
 
 
 def _request(**changes) -> PaymentCancellationRequest:
@@ -41,7 +41,7 @@ def _request(**changes) -> PaymentCancellationRequest:
 def test_build_asks_the_payment_back_with_its_reason():
     root = etree.fromstring(build_cancellation_request_bytes(_request()))
 
-    assert root.tag == "{urn:iso:std:iso:20022:tech:xsd:camt.056.001.08}Document"
+    assert root.tag == "{urn:iso:std:iso:20022:tech:xsd:camt.056.001.12}Document"
     assignment = root.find("n:FIToFIPmtCxlReq/n:Assgnmt", _NS)
     assert assignment.findtext("n:Id", namespaces=_NS) == "RCL-0001"
     assert assignment.findtext("n:Assgnr/n:Agt/n:FinInstnId/n:BICFI", namespaces=_NS) == "UNCRITM1XXX"
@@ -105,7 +105,7 @@ def test_invalid_requests_arent_built(changes, error):
         ((b"<Rsn><Cd>FRAD</Cd></Rsn>", b""), "Missing TxInf/CxlRsnInf/Rsn"),
         ((b"<OrgnlEndToEndId>E2E-DEUR-0430</OrgnlEndToEndId>", b""), "Missing OrgnlEndToEndId"),
         ((b"<Id>RCL-0001</Id>", b""), "Missing Id"),
-        ((b"camt.056.001.08", b"camt.029.001.09"), "Not a camt.056 Document"),
+        ((b"camt.056.001.12", b"camt.029.001.14"), "Not a camt.056 Document"),
         ((b"<Document", b"<Docum"), "Malformed XML"),
     ],
     ids=["no-reason", "no-e2e", "no-assignment-id", "other-message", "malformed"],

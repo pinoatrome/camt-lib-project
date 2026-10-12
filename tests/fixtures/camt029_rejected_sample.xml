@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- The payee's PSP answering a recall: one payment refused (the customer said no), one still pending. -->
-<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.029.001.09">
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.029.001.14">
   <RsltnOfInvstgtn>
     <Assgnmt>
       <Id>RES-0001</Id>
