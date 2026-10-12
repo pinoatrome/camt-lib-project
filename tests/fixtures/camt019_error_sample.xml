@@ -1,20 +1,31 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.019.001.06">
+<!-- A business day query about a system the reporter doesn't know. -->
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.019.001.07">
   <RtrBizDayInf>
     <MsgHdr>
       <MsgId>RESP-0002</MsgId>
-      <CreDtTm>2026-09-25T06:05:00</CreDtTm>
+      <CreDtTm>2026-09-25T06:01:00</CreDtTm>
       <OrgnlBizQry>
         <MsgId>REQ-0002</MsgId>
+        <MsgNmId>camt.018.001.05</MsgNmId>
       </OrgnlBizQry>
     </MsgHdr>
     <RptOrErr>
-      <BizErr>
-        <Err>
-          <Prtry>UNKNOWN_SYSTEM</Prtry>
-        </Err>
-        <Desc>System not found</Desc>
-      </BizErr>
+      <BizRpt>
+        <SysId>
+          <MktInfrstrctrId>
+            <Prtry>NOSUCH</Prtry>
+          </MktInfrstrctrId>
+        </SysId>
+        <BizDayOrErr>
+          <BizErr>
+            <Err>
+              <Prtry>UNKNOWN_SYSTEM</Prtry>
+            </Err>
+            <Desc>System not found</Desc>
+          </BizErr>
+        </BizDayOrErr>
+      </BizRpt>
     </RptOrErr>
   </RtrBizDayInf>
 </Document>

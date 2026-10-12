@@ -1,39 +1,68 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.019.001.06">
+<!-- TARGET2's business day: open, with its start, cut-offs and end. -->
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.019.001.07">
   <RtrBizDayInf>
     <MsgHdr>
       <MsgId>RESP-0001</MsgId>
       <CreDtTm>2026-09-25T06:00:00</CreDtTm>
       <OrgnlBizQry>
         <MsgId>REQ-0001</MsgId>
+        <MsgNmId>camt.018.001.05</MsgNmId>
       </OrgnlBizQry>
     </MsgHdr>
     <RptOrErr>
-      <BizDayInfRpt>
+      <BizRpt>
         <SysId>
-          <Cd>TARGET2</Cd>
+          <MktInfrstrctrId>
+            <Prtry>TARGET2</Prtry>
+          </MktInfrstrctrId>
         </SysId>
-        <SysDt>2026-09-25</SysDt>
-        <SysSts>
-          <Cd>OPEN</Cd>
-        </SysSts>
-        <SysEvt>
-          <EvtCd>START</EvtCd>
-          <EvtTm>2026-09-25T07:00:00</EvtTm>
-        </SysEvt>
-        <SysEvt>
-          <EvtCd>CUT-OFF-CUST</EvtCd>
-          <EvtTm>2026-09-25T17:00:00</EvtTm>
-        </SysEvt>
-        <SysEvt>
-          <EvtCd>CUT-OFF-BANK</EvtCd>
-          <EvtTm>2026-09-25T18:00:00</EvtTm>
-        </SysEvt>
-        <SysEvt>
-          <EvtCd>END</EvtCd>
-          <EvtTm>2026-09-25T18:45:00</EvtTm>
-        </SysEvt>
-      </BizDayInfRpt>
+        <BizDayOrErr>
+          <BizDayInf>
+            <SysDt>
+              <Dt>2026-09-25</Dt>
+            </SysDt>
+            <SysSts>
+              <Sts>
+                <Cd>ACTV</Cd>
+              </Sts>
+            </SysSts>
+            <SysInfPerCcy>
+              <SysCcy>EUR</SysCcy>
+              <Evt>
+                <Tp>
+                  <Prtry>
+                    <Id>START</Id>
+                  </Prtry>
+                </Tp>
+                <SchdldTm>2026-09-25T07:00:00</SchdldTm>
+              </Evt>
+              <Evt>
+                <Tp>
+                  <Prtry>
+                    <Id>CUT-OFF-CUST</Id>
+                  </Prtry>
+                </Tp>
+                <SchdldTm>2026-09-25T17:00:00</SchdldTm>
+              </Evt>
+              <Evt>
+                <Tp>
+                  <Prtry>
+                    <Id>CUT-OFF-BANK</Id>
+                  </Prtry>
+                </Tp>
+                <SchdldTm>2026-09-25T18:00:00</SchdldTm>
+              </Evt>
+              <Evt>
+                <Tp>
+                  <Cd>END</Cd>
+                </Tp>
+                <SchdldTm>2026-09-25T18:45:00</SchdldTm>
+              </Evt>
+            </SysInfPerCcy>
+          </BizDayInf>
+        </BizDayOrErr>
+      </BizRpt>
     </RptOrErr>
   </RtrBizDayInf>
 </Document>

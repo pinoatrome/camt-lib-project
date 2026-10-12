@@ -1,4 +1,4 @@
-"""Build and parse ISO 20022 camt.056.001.08 (FIToFIPaymentCancellationRequest): a recall.
+"""Build and parse ISO 20022 camt.056.001.12 (FIToFIPaymentCancellationRequest): a recall.
 
 The payer's PSP asks the payee's PSP to send back payments it made (pacs.008),
 with a reason: a duplicate (DUPL), a fraud (FRAD), a technical problem (TECH),
@@ -41,7 +41,7 @@ from .enums import iso20022_namespace
 from .exceptions import CamtError, CamtParseError
 from .parser import _child, _children, _path, _text
 
-_NAMESPACE = iso20022_namespace("camt.056", "001.08")
+_NAMESPACE = iso20022_namespace("camt.056", "001.12")
 
 # Common cancellation reasons (ExternalCancellationReason1Code).
 DUPLICATE = "DUPL"
@@ -96,7 +96,7 @@ def _check(request: PaymentCancellationRequest) -> None:
 
 
 def build_cancellation_request_element(request: PaymentCancellationRequest) -> etree._Element:
-    """The `<Document>` tree of a camt.056.001.08. Raises `CamtError` if it isn't valid."""
+    """The `<Document>` tree of a camt.056.001.12. Raises `CamtError` if it isn't valid."""
     _check(request)
     root = etree.Element("Document", nsmap={None: _NAMESPACE})
     cancellation = sub(root, "FIToFIPmtCxlReq")
@@ -125,7 +125,7 @@ def build_cancellation_request_element(request: PaymentCancellationRequest) -> e
 
 
 def build_cancellation_request_bytes(request: PaymentCancellationRequest, *, pretty_print: bool = True) -> bytes:
-    """The camt.056.001.08 XML of `request`, as bytes."""
+    """The camt.056.001.12 XML of `request`, as bytes."""
     return etree.tostring(
         build_cancellation_request_element(request), xml_declaration=True, encoding="UTF-8",
         pretty_print=pretty_print,
@@ -133,7 +133,7 @@ def build_cancellation_request_bytes(request: PaymentCancellationRequest, *, pre
 
 
 def build_cancellation_request_string(request: PaymentCancellationRequest, *, pretty_print: bool = True) -> str:
-    """The camt.056.001.08 XML of `request`, as a string."""
+    """The camt.056.001.12 XML of `request`, as a string."""
     return build_cancellation_request_bytes(request, pretty_print=pretty_print).decode("utf-8")
 
 

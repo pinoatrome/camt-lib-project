@@ -62,7 +62,8 @@ xml_bytes = build_bytes(doc)
 
 CAMT ("Cash Management") is the ISO 20022 message set banks and PSPs use to
 report on accounts and to move liquidity between them. Each message family has
-a number (`camt.NNN`) and a schema variant (`.001.02`, `.001.08`, …). This
+a number (`camt.NNN`) and a schema variant (`.001.02`, `.001.08`, …); the
+library builds the newest of each. This
 library covers the families below; everything else in the CAMT set is out of
 scope.
 
@@ -131,54 +132,71 @@ entries — so the generic `parse_*`/`build_*` functions and the `Document`,
 
 ### Account query pair (camt.003 / camt.004)
 
-- **camt.003 — GetAccount.** An outbound request asking the bank for the
-  current state of one account, identified by IBAN or by a proprietary id
-  (e.g. a DEAN). Used when the current balance or status is needed on demand,
-  instead of waiting for the next report.
-- **camt.004 — ReturnAccount.** The response to camt.003, carrying the
-  account's identifiers, currency, status (`ENABLED` / `BLOCKED` /
-  `SUSPENDED`), servicer details and balances. The same message also arrives
-  unsolicited as an account alert (for example on a status change), so it is
-  parsed the same way whether or not a camt.003 was sent. The parsed
-  `AccountReport` exposes `balance(type_code)`, `closing_balance` (CLBD) and
-  `remaining_holding_capacity` (holding limit minus closing balance, as a
-  `Decimal`).
+- **camt.003 — GetAccount** (built at .001.08, the newest). An outbound
+  request asking the bank for the current state of one account, identified by
+  IBAN or by a proprietary id (e.g. a DEAN), in `SchCrit/AcctId/EQ`. Used when
+  the current balance or status is needed on demand, instead of waiting for the
+  next report.
+- **camt.004 — ReturnAccount** (any version read; .001.10 the newest). The
+  response to camt.003: the account (`AcctId`, its DEAN as `Othr/Id` or its
+  IBAN), its type, currency, holding limit (`CurMulLmt`), owner (name and
+  `AnyBIC`), servicer and balances (`MulBal`, negative for a debit), or an
+  error about it (`BizErr`) or the query (`OprlErr`). The same message also
+  arrives unsolicited as an account alert (for example on a status change, no
+  `OrgnlBizQry`), so it is parsed the same way whether or not a camt.003 was
+  sent. The parsed `AccountReport` exposes `balance(type_code)`,
+  `closing_balance` (CLBD) and `remaining_holding_capacity` (holding limit
+  minus closing balance, as a `Decimal`).
+
+  ISO's account has no element for two things DESP tells: the IBAN next to the
+  DEAN, read from the account's proxy (`Acct/Prxy`, type `IBAN`), and the
+  account's status (`ENABLED` / `BLOCKED` / `SUSPENDED`), read from the
+  message's supplementary data (`SplmtryData/Envlp/AcctSts`, in any namespace,
+  `camt.camt004.ACCOUNT_STATUS`).
 
 ### Transaction query pair (camt.005 / camt.006)
 
-- **camt.005 — GetTransaction.** An outbound request asking the bank for one
-  account's transactions, filtered by booking-date window and/or status. Used
-  when transaction-level detail is needed on demand, instead of waiting for
-  the next camt.052/053/054 report.
+- **camt.005 — GetTransaction** (built at .001.11, the newest). An outbound
+  request asking the bank for one account's transactions, searched on the
+  account's entries (`SchCrit/AcctNtrySch`), filtered by an entry date-time
+  window and/or the entry status (`BOOK`, `PDNG`, `FUTR`). Used when
+  transaction-level detail is needed on demand, instead of waiting for the
+  next camt.052/053/054 report.
 
   camt.005 also supports the ISO 20022 **delta query pattern**, for polling an
   account without re-fetching and re-diffing the full result set each time:
   the first request names its search criteria (`new_query_name`, built with
   `build_get_transaction_request_*`); every later poll then sends a *delta*
   follow-up (`build_get_transaction_delta_request_*`) that references that
-  name alone, asking for only what changed since the named query was last
-  answered.
-- **camt.006 — ReturnTransaction.** The response to camt.005. For an initial,
-  non-delta request, the transactions are reported as a single set. For a
-  delta follow-up, `parse_camt006()` splits them into a `DeltaTransactionSet`
-  of three groups — `new`, `modified` (e.g. a status change) and `cancelled`
-  — since the named query was last answered, and it also carries the query's
-  name back (`query_name`) so it can be fed straight into the next delta
-  follow-up.
+  name alone (`TxCrit/QryNm`), asking for only what changed since the named
+  query was last answered: its query type (`QryTp`) is `CHNG` (any change, the
+  default), `MODF` (modified) or `DELD` (deleted).
+- **camt.006 — ReturnTransaction** (any version read; .001.11 the newest).
+  The response to camt.005: the transactions (`TxRpt`), each with its
+  direction, the payment's ids, amount and status (`payment_status`, e.g.
+  `STLD`, `RJTD`, `CAND` cancelled), and the account entry's amount, date and
+  status, or the error about it; or an operational error. For a delta
+  follow-up it lists just what changed, the payment's status saying how. It
+  also carries the query's name back (`query_name`) so it can be fed straight
+  into the next delta follow-up.
 
 ### Business day query pair (camt.018 / camt.019)
 
-- **camt.018 — GetBusinessDayInformation.** An outbound request asking a
-  settlement system (e.g. TARGET2/T2, CLM, TIPS) for the status of one
-  business day, optionally for a specific date (defaulting to the current
-  business day otherwise). Used to check whether the system is open and what
+- **camt.018 — GetBusinessDayInformation** (built at .001.05, the newest). An
+  outbound request asking a settlement system (e.g. TARGET2/T2, CLM, TIPS) for
+  the status of one business day, optionally for a specific date (defaulting to
+  the current business day otherwise). The system goes in
+  `SysId/MktInfrstrctrId`: a code of up to 3 characters (`CLM`) as `Cd`, a
+  longer one (`TARGET2`) as `Prtry`. Used to check whether the system is open and what
   its cut-off schedule is before submitting a payment or liquidity
   instruction.
-- **camt.019 — ReturnBusinessDayInformation.** The response to camt.018,
-  carrying the system's status (`OPEN` / `CLOSED` / `CHANGEOVER`) for that
-  date plus its ordered list of scheduled events (start of day, cut-off
-  times, end of day). `BusinessDayInfo.event_time()` looks up one event's
-  timestamp by code (e.g. `"CUT-OFF-CUST"`).
+- **camt.019 — ReturnBusinessDayInformation** (any version read; .001.07 the
+  newest). The response to camt.018, carrying the system's status (`ACTV`,
+  `SUSP`, `CLSD`, `CLSG`) for that date plus the ordered list of each
+  currency's scheduled events (start of day, cut-off times, end of day), with
+  their scheduled and effective times; or an error.
+  `BusinessDayInfo.event_time()` looks up one event's scheduled time by code
+  (e.g. `"CUT-OFF-CUST"`).
 
 ### Reservation management (camt.046 / 047 / 048 / 049)
 
@@ -219,13 +237,13 @@ and EndToEndId; they're built (with validation raising `CamtError`) and parsed
   payee's PSP to send back one or more payments (`RecalledPayment`), each with
   a cancellation reason: a duplicate (`DUPL`), a fraud (`FRAD`), a technical
   problem (`TECH`), the customer's request (`CUST`), a wrong amount (`AM09`) or
-  account (`AC03`), an undue payment (`UPAY`). Built as `.001.08`.
+  account (`AC03`), an undue payment (`UPAY`). Built as `.001.12`, the newest.
 - **camt.029 — ResolutionOfInvestigation.** The payee's PSP's answer when it
   doesn't send the money back: the case's outcome (`Sts/Conf`: `RJCR`
   refused, `PDCR` pending, ...) and each payment's (`RecallAnswer.status`,
   `TxCxlSts`), a refusal with its reason — the customer refused (`CUST`) or
   didn't answer (`NOAS`), already returned (`ARDT`), a closed account (`AC04`),
-  no funds (`AM04`), a legal decision (`LEGL`). Built as `.001.09`. A recall
+  no funds (`AM04`), a legal decision (`LEGL`). Built as `.001.14`, the newest. A recall
   that's accepted is answered with the pacs.004 return instead (reason
   `FOCR`), which then shows up in the camt.054 as `return_info`.
 
@@ -261,11 +279,7 @@ pytest tests
 `tests/test_schemas.py` checks every message the library builds, and every
 fixture in `tests/fixtures/`, against the ISO 20022 schemas in `tests/xsd/`: the
 Cash Management message set of the 2025/2026 catalogue, the newest version of each
-family the library handles. A message in an older version is checked against the
-newest with its namespace changed to that version's.
-
-camt.052, camt.053, camt.054, camt.050, camt.025, camt.046 to camt.049,
-camt.029 and camt.056 are valid. The account and business day services
-(camt.003 to camt.006, camt.018, camt.019) aren't yet: their structure isn't ISO
-20022's, and they're to be rewritten to their newest versions. Until then their checks are marked `xfail(strict=True)`, with the
-reason, so a fix makes the mark fail until it's removed.
+family the library handles. The library builds every message in that version and
+the fixtures are in it too, so each is checked against its own schema; the tests
+fail if a message or a fixture falls behind it. (The parsers read any version,
+and their own tests cover older ones.)

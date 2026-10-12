@@ -1,71 +1,139 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.006.001.08">
+<!-- The answer to a delta follow-up (QryTp CHNG): what changed since the named query was last answered,
+     a new transaction, a rejected one, a cancelled one, and one the reporter can't report on. -->
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.006.001.11">
   <RtrTx>
     <MsgHdr>
       <MsgId>RESP-0002</MsgId>
       <CreDtTm>2026-09-03T10:00:00</CreDtTm>
       <OrgnlBizQry>
         <MsgId>REQ-0002</MsgId>
-        <QryNm>DAILY-RECON</QryNm>
+        <MsgNmId>camt.005.001.11</MsgNmId>
       </OrgnlBizQry>
+      <QryNm>DAILY-RECON</QryNm>
     </MsgHdr>
     <RptOrErr>
-      <TxRpt>
-        <QryNm>DAILY-RECON</QryNm>
-        <TxRptOrErr>
-          <TxRpt>
-            <New>
-              <TxDtls>
-                <Refs>
-                  <TxId>TX-0003</TxId>
-                  <EndToEndId>E2E-0003</EndToEndId>
-                </Refs>
-                <Amt Ccy="EUR">200.00</Amt>
-                <CdtDbtInd>CRDT</CdtDbtInd>
+      <BizRpt>
+        <TxRpt>
+          <PmtId>
+            <TxId>TX-0003</TxId>
+          </PmtId>
+          <TxOrErr>
+            <Tx>
+              <CdtDbtInd>CRDT</CdtDbtInd>
+              <Pmt>
                 <Sts>
-                  <Cd>BOOK</Cd>
+                  <Cd>
+                    <Fnl>STLD</Fnl>
+                  </Cd>
                 </Sts>
-                <BookgDt>
-                  <Dt>2026-09-03</Dt>
-                </BookgDt>
-              </TxDtls>
-            </New>
-            <Mod>
-              <TxDtls>
-                <Refs>
-                  <TxId>TX-0002</TxId>
-                  <EndToEndId>E2E-0002</EndToEndId>
-                </Refs>
-                <Amt Ccy="EUR">75.50</Amt>
-                <CdtDbtInd>DBIT</CdtDbtInd>
+                <IntrBkSttlmAmt>
+                  <AmtWthCcy Ccy="EUR">200.00</AmtWthCcy>
+                </IntrBkSttlmAmt>
+                <EndToEndId>E2E-0003</EndToEndId>
+              </Pmt>
+              <AcctNtry>
+                <Acct>
+                  <Id>
+                    <IBAN>IT60X0542811101000000123456</IBAN>
+                  </Id>
+                </Acct>
+                <Ntry>
+                  <Amt Ccy="EUR">200.00</Amt>
+                  <Dt>
+                    <Dt>2026-09-03</Dt>
+                  </Dt>
+                  <Sts>BOOK</Sts>
+                </Ntry>
+              </AcctNtry>
+            </Tx>
+          </TxOrErr>
+        </TxRpt>
+        <TxRpt>
+          <PmtId>
+            <TxId>TX-0002</TxId>
+          </PmtId>
+          <TxOrErr>
+            <Tx>
+              <CdtDbtInd>DBIT</CdtDbtInd>
+              <Pmt>
                 <Sts>
-                  <Cd>RJCT</Cd>
+                  <Cd>
+                    <Fnl>RJTD</Fnl>
+                  </Cd>
                 </Sts>
-                <BookgDt>
-                  <Dt>2026-09-02</Dt>
-                </BookgDt>
-                <AddtlTxInf>Returned by beneficiary bank</AddtlTxInf>
-              </TxDtls>
-            </Mod>
-            <Canc>
-              <TxDtls>
-                <Refs>
-                  <TxId>TX-0001</TxId>
-                  <EndToEndId>E2E-0001</EndToEndId>
-                </Refs>
-                <Amt Ccy="EUR">150.00</Amt>
-                <CdtDbtInd>CRDT</CdtDbtInd>
+                <IntrBkSttlmAmt>
+                  <AmtWthCcy Ccy="EUR">75.50</AmtWthCcy>
+                </IntrBkSttlmAmt>
+                <EndToEndId>E2E-0002</EndToEndId>
+              </Pmt>
+              <AcctNtry>
+                <Acct>
+                  <Id>
+                    <IBAN>IT60X0542811101000000123456</IBAN>
+                  </Id>
+                </Acct>
+                <Ntry>
+                  <Amt Ccy="EUR">75.50</Amt>
+                  <Dt>
+                    <Dt>2026-09-02</Dt>
+                  </Dt>
+                  <Sts>BOOK</Sts>
+                  <AddtlNtryInf>Returned by beneficiary bank</AddtlNtryInf>
+                </Ntry>
+              </AcctNtry>
+            </Tx>
+          </TxOrErr>
+        </TxRpt>
+        <TxRpt>
+          <PmtId>
+            <TxId>TX-0001</TxId>
+          </PmtId>
+          <TxOrErr>
+            <Tx>
+              <CdtDbtInd>CRDT</CdtDbtInd>
+              <Pmt>
                 <Sts>
-                  <Cd>CANC</Cd>
+                  <Cd>
+                    <Fnl>CAND</Fnl>
+                  </Cd>
                 </Sts>
-                <BookgDt>
-                  <Dt>2026-09-01</Dt>
-                </BookgDt>
-              </TxDtls>
-            </Canc>
-          </TxRpt>
-        </TxRptOrErr>
-      </TxRpt>
+                <IntrBkSttlmAmt>
+                  <AmtWthCcy Ccy="EUR">150.00</AmtWthCcy>
+                </IntrBkSttlmAmt>
+                <EndToEndId>E2E-0001</EndToEndId>
+              </Pmt>
+              <AcctNtry>
+                <Acct>
+                  <Id>
+                    <IBAN>IT60X0542811101000000123456</IBAN>
+                  </Id>
+                </Acct>
+                <Ntry>
+                  <Amt Ccy="EUR">150.00</Amt>
+                  <Dt>
+                    <Dt>2026-09-01</Dt>
+                  </Dt>
+                  <Sts>PDNG</Sts>
+                </Ntry>
+              </AcctNtry>
+            </Tx>
+          </TxOrErr>
+        </TxRpt>
+        <TxRpt>
+          <PmtId>
+            <TxId>TX-0009</TxId>
+          </PmtId>
+          <TxOrErr>
+            <BizErr>
+              <Err>
+                <Prtry>TX_UNKNOWN</Prtry>
+              </Err>
+              <Desc>No such transaction any more</Desc>
+            </BizErr>
+          </TxOrErr>
+        </TxRpt>
+      </BizRpt>
     </RptOrErr>
   </RtrTx>
 </Document>

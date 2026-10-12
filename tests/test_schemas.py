@@ -2,14 +2,9 @@
 
 The schemas in tests/xsd/ are the Cash Management message set of the ISO 20022
 catalogue, 2025/2026 edition: the newest version of each family the library handles.
-A message in an older version is checked against the newest with its namespace
-changed to that version's: newer versions mostly add optional elements, so a
-message valid in both is valid in its own version too.
-
-What isn't valid yet is marked `xfail(strict=True)`, with the reason: fixing it makes
-the test pass, and the strict mark then fails until it's removed. The messages are
-moving to the newest versions family by family (camt.052/053/054, the liquidity
-transfers, camt.050/025, and the reservations, camt.046 to camt.049, are there).
+The library builds every message in that version, and the fixtures are in it too, so
+each is checked against its own schema. (The parsers read any version: their tests
+cover older ones.)
 """
 from datetime import date, datetime, timezone
 from decimal import Decimal
@@ -54,23 +49,20 @@ NOW = datetime(2026, 10, 12, 9, 30, tzinfo=timezone.utc)
 ALPHA = "DEAN-IT-0001-ALPHA"
 IBAN = "IT60X0542811101000000123456"
 
-# Not valid yet: the structure the library writes or reads isn't ISO 20022's. Each
-# family is to be rewritten to its newest version, with the mock DESP that speaks it.
-ACCOUNTS = "account and business day services (camt.003 to camt.006, camt.018, camt.019): not ISO's structure yet"
-
-
 @cache
 def schema(version: str) -> etree.XMLSchema:
     return etree.XMLSchema(etree.parse(str(SCHEMAS / f"{version}.xsd")))
 
 
+def version(xml: bytes) -> str:
+    """The message's version, from its namespace: "camt.053.001.14"."""
+    return etree.QName(etree.fromstring(xml)).namespace.rsplit(":", 1)[1]
+
+
 def schema_errors(xml: bytes) -> list[str]:
-    """What the newest schema of `xml`'s family finds wrong in it; empty when it's valid."""
-    root = etree.fromstring(xml)
-    own_version = etree.QName(root).namespace.rsplit(":", 1)[1]
-    newest = NEWEST[own_version[:8]]
-    checker = schema(newest)
-    if checker.validate(etree.fromstring(xml.replace(own_version.encode(), newest.encode(), 1))):
+    """What the schema of `xml`'s own version finds wrong in it; empty when it's valid."""
+    checker = schema(version(xml))
+    if checker.validate(etree.fromstring(xml)):
         return []
     return [error.message for error in checker.error_log]
 
@@ -155,63 +147,44 @@ BUILT = {
     )),
 }
 
-BUILT_NOT_VALID_YET = {
-    "camt.003": ACCOUNTS,
-    "camt.005": ACCOUNTS,
-    "camt.018": ACCOUNTS,
-}
-
 # Fixtures that are invalid on purpose: what the parser must tolerate.
 INVALID_ON_PURPOSE = {
     "camt053_paginated_page1_no_last_pg_ind.xml",  # MsgPgntn without LastPgInd
 }
-
-FIXTURES_NOT_VALID_YET = {
-    "camt004_error_sample.xml": ACCOUNTS,
-    "camt004_success_sample.xml": ACCOUNTS,
-    "camt006_delta_sample.xml": ACCOUNTS,
-    "camt006_error_sample.xml": ACCOUNTS,
-    "camt006_full_sample.xml": ACCOUNTS,
-    "camt019_error_sample.xml": ACCOUNTS,
-    "camt019_success_sample.xml": ACCOUNTS,
-}
-
-# Families no built message nor fixture checks yet: parsed only from inline XML.
-NOT_CHECKED_YET: dict[str, str] = {}
 
 FIXTURE_FILES = sorted(
     path.name for path in FIXTURES.glob("camt*.xml") if path.name not in INVALID_ON_PURPOSE
 )
 
 
-def _not_valid_yet(name: str, known: dict[str, str]):
-    reason = known.get(name, known.get(name.split()[0]))  # "camt.005 delta" goes with camt.005
-    return pytest.param(name, marks=pytest.mark.xfail(reason=reason, strict=True)) if reason else name
-
-
-@pytest.mark.parametrize("message", [_not_valid_yet(name, BUILT_NOT_VALID_YET) for name in BUILT])
+@pytest.mark.parametrize("message", BUILT)
 def test_built_messages_are_valid(message):
     assert schema_errors(BUILT[message]()) == []
 
 
-@pytest.mark.parametrize("fixture", [_not_valid_yet(name, FIXTURES_NOT_VALID_YET) for name in FIXTURE_FILES])
+@pytest.mark.parametrize("fixture", FIXTURE_FILES)
 def test_fixtures_are_valid(fixture):
     assert schema_errors((FIXTURES / fixture).read_bytes()) == []
 
 
-def test_statements_are_built_in_the_newest_version():
-    for message_type in MessageType:
-        root = etree.fromstring(build_bytes(_statement_document(message_type)))
-        assert etree.QName(root).namespace.endswith(NEWEST[message_type.value])
+@pytest.mark.parametrize("message", BUILT)
+def test_messages_are_built_in_the_newest_version(message):
+    built = version(BUILT[message]())
+
+    assert built == NEWEST[built[:8]]
+
+
+@pytest.mark.parametrize("fixture", sorted(path.name for path in FIXTURES.glob("camt*.xml")))
+def test_fixtures_are_in_the_newest_version(fixture):
+    own = version((FIXTURES / fixture).read_bytes())
+
+    assert own == NEWEST[own[:8]]
 
 
 def test_every_schema_checks_something():
-    checked = {name[:8] for name in BUILT} | {
-        f"camt.{name[4:7]}" for name in FIXTURE_FILES
-    }
+    checked = {name[:8] for name in BUILT} | {f"camt.{name[4:7]}" for name in FIXTURE_FILES}
 
-    assert set(NEWEST) == checked | set(NOT_CHECKED_YET)
-    assert not checked & set(NOT_CHECKED_YET)
+    assert set(NEWEST) == checked
 
 
 def test_the_invalid_fixtures_are_refused():

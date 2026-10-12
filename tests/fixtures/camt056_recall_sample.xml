@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- A recall, as the payer's PSP sends it: two payments asked back, a duplicate and a fraud. -->
-<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.056.001.08">
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.056.001.12">
   <FIToFIPmtCxlReq>
     <Assgnmt>
       <Id>RCL-0001</Id>

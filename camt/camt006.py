@@ -1,171 +1,146 @@
-"""Parse ISO 20022 camt.006.001.08 (ReturnTransaction) messages.
+"""Parse ISO 20022 camt.006 (ReturnTransaction) messages.
 
 camt.006 is the response half of the camt.005 GetTransaction request (see
 `camt.camt005`) -- not one of the bank-to-customer *report* messages
 (camt.052/053/054) that `camt.parser`/`camt.builder` target, so, like
 camt.004, it's parsed here directly rather than through that pair.
 
-For a delta follow-up request (see
-`camt.camt005.build_get_transaction_delta_request_element`), the response
-groups its transactions into three sets -- new, modified, and cancelled since
-the named query was last answered -- instead of repeating the full result
-set every time; `DeltaTransactionSet` models that grouping. A first,
-non-delta response reports its whole result set as `new`, leaving
-`modified`/`cancelled` empty.
+A response is `RtrTx`: a `MsgHdr` naming the query it answers
+(`OrgnlBizQry/MsgId`) and, for a named one, its name (`QryNm`), then
+`RptOrErr`, either operational errors (`OprlErr`) or a report (`BizRpt`) of
+transactions (`TxRpt`). Each names its payment (`PmtId`) and holds either the
+transaction (`TxOrErr/Tx`: its direction, the payment with its ids, amount and
+status, the account entry with its amount, date and status) or an error about
+it (`TxOrErr/BizErr`). For a delta follow-up (see
+`camt.camt005.build_get_transaction_delta_request_element`) the report lists
+just what changed; a payment's status says how (e.g. `CAND`, cancelled).
+Parsing matches elements by local name, so any camt.006 version reads; the
+library's checks use .001.11, the newest.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from lxml import etree
 
-from .enums import iso20022_namespace
+from ._investigation import read_root
+from .exceptions import CamtParseError
+from .parser import _child, _children, _path, _text
 
-_NAMESPACE = iso20022_namespace("camt.006", "001.08")
-_NS_PREFIX = f"{{{_NAMESPACE}}}"
+# The payment status choice (PaymentStatusCode6Choice): pending, final, or another scheme's.
+_PAYMENT_STATUS_TAGS = ("Fnl", "Pdg", "RTGS", "Sttlm", "Prtry")
 
 
 @dataclass
 class TransactionRecord:
-    """One transaction inside a camt.006 New/Modified/Cancelled set."""
+    """One transaction a camt.006 reports, or the error the reporter gave about it."""
 
-    tx_id: str | None
+    tx_id: str | None  # PmtId/TxId, else the payment's TxId
     end_to_end_id: str | None
     amount: float
     currency: str
     credit_debit: str | None  # CRDT | DBIT
-    status: str | None  # e.g. BOOK, PDNG, RJCT
-    booking_date: str | None
-    additional_info: str | None = None
-
-
-@dataclass
-class DeltaTransactionSet:
-    """The three transaction groups a camt.006 response reports: new since
-    the last query, modified since the last query (e.g. a status change),
-    and cancelled since the last query. A first, non-delta response reports
-    its full result set as `new`, leaving `modified`/`cancelled` empty."""
-
-    new: list[TransactionRecord] = field(default_factory=list)
-    modified: list[TransactionRecord] = field(default_factory=list)
-    cancelled: list[TransactionRecord] = field(default_factory=list)
-
-    @property
-    def is_empty(self) -> bool:
-        return not (self.new or self.modified or self.cancelled)
+    status: str | None  # the entry's: BOOK, PDNG, FUTR
+    booking_date: str | None  # the entry's date (Dt or DtTm)
+    additional_info: str | None = None  # the entry's AddtlNtryInf lines, joined
+    payment_status: str | None = None  # the payment's: e.g. STLD, RJTD, CAND (final), ACPD (pending)
+    message_id: str | None = None  # the payment's MsgId
+    error_code: str | None = None  # TxOrErr/BizErr/Err
+    error_description: str | None = None
 
 
 @dataclass
 class Camt006Response:
-    """Top-level parsed camt.006.001.08 ReturnTransaction message.
+    """Top-level parsed camt.006 ReturnTransaction message.
 
     `original_msg_id` is the camt.005 request's message ID. `query_name` is
     the named query (see
     `camt.camt005.build_get_transaction_request_element`'s `new_query_name`)
     this response reports against, if any -- pass it into
     `camt.camt005.build_get_transaction_delta_request_element` for the next
-    delta follow-up.
+    delta follow-up. `transactions` is None for an operational error.
     """
 
     response_msg_id: str | None
     original_msg_id: str | None
     created_at: str | None
     query_name: str | None
-    transactions: DeltaTransactionSet | None = None  # None -> error response
+    transactions: list[TransactionRecord] | None = None  # None -> error response
     error_code: str | None = None
     error_description: str | None = None
 
 
-def _tag(name: str) -> str:
-    return f"{_NS_PREFIX}{name}"
+def _choice(element: etree._Element | None) -> str | None:
+    """The code of a Cd/Prtry choice."""
+    return _text(_child(element, "Cd")) or _text(_child(element, "Prtry"))
 
 
-def _text(el: etree._Element | None, path: str) -> str | None:
-    if el is None:
-        return None
-    found = el.find(path)
-    return found.text if found is not None else None
+def _amount(element: etree._Element | None) -> tuple[float | None, str]:
+    if element is None or _text(element) is None:
+        return None, ""
+    try:
+        return float(_text(element)), element.get("Ccy", "")
+    except ValueError as exc:
+        raise CamtParseError(f"Invalid transaction amount: {_text(element)!r}") from exc
 
 
-def _parse_tx_details(tx_el: etree._Element) -> TransactionRecord:
-    refs = tx_el.find(_tag("Refs"))
-    tx_id = _text(refs, _tag("TxId")) or _text(refs, _tag("AcctSvcrRef"))
-    end_to_end_id = _text(refs, _tag("EndToEndId"))
+def _payment_status(payment: etree._Element | None) -> str | None:
+    code = _path(payment, "Sts", "Cd")
+    return next((_text(_child(code, tag)) for tag in _PAYMENT_STATUS_TAGS if _child(code, tag) is not None), None)
 
-    amt_el = tx_el.find(_tag("Amt"))
-    amount = float(amt_el.text) if amt_el is not None else 0.0
-    currency = amt_el.get("Ccy", "") if amt_el is not None else ""
 
-    credit_debit = _text(tx_el, _tag("CdtDbtInd"))
-    status = _text(tx_el, f"{_tag('Sts')}/{_tag('Cd')}")
-    booking_date = _text(tx_el, f"{_tag('BookgDt')}/{_tag('Dt')}") or _text(
-        tx_el, f"{_tag('BookgDt')}/{_tag('DtTm')}"
-    )
-    additional_info = _text(tx_el, _tag("AddtlTxInf"))
-
+def _parse_transaction(report: etree._Element) -> TransactionRecord:
+    outcome = _child(report, "TxOrErr")
+    transaction = _child(outcome, "Tx")
+    error = _child(outcome, "BizErr")
+    payment = _child(transaction, "Pmt")
+    entry = _path(transaction, "AcctNtry", "Ntry")
+    amount, currency = _amount(_child(entry, "Amt"))
+    if amount is None:
+        settlement = _child(payment, "IntrBkSttlmAmt")
+        amount, currency = _amount(_child(settlement, "AmtWthCcy"))
+        if amount is None:
+            amount, currency = _amount(_child(settlement, "AmtWthtCcy"))
+    date = _child(entry, "Dt")
+    lines = [_text(line) for line in _children(entry, "AddtlNtryInf")]
     return TransactionRecord(
-        tx_id=tx_id,
-        end_to_end_id=end_to_end_id,
-        amount=amount,
+        tx_id=_text(_path(report, "PmtId", "TxId")) or _text(_child(payment, "TxId")),
+        end_to_end_id=_text(_child(payment, "EndToEndId")),
+        amount=amount or 0.0,
         currency=currency,
-        credit_debit=credit_debit,
-        status=status,
-        booking_date=booking_date,
-        additional_info=additional_info,
+        credit_debit=_text(_child(transaction, "CdtDbtInd")),
+        status=_text(_child(entry, "Sts")),
+        booking_date=_text(_child(date, "Dt")) or _text(_child(date, "DtTm")),
+        additional_info=" ".join(line for line in lines if line) or None,
+        payment_status=_payment_status(payment),
+        message_id=_text(_child(payment, "MsgId")),
+        error_code=_choice(_child(error, "Err")),
+        error_description=_text(_child(error, "Desc")),
     )
-
-
-def _parse_tx_group(parent: etree._Element | None, group_tag: str) -> list[TransactionRecord]:
-    group_el = parent.find(_tag(group_tag)) if parent is not None else None
-    if group_el is None:
-        return []
-    return [_parse_tx_details(tx_el) for tx_el in group_el.findall(_tag("TxDtls"))]
 
 
 def parse_camt006(xml_bytes: bytes) -> Camt006Response:
-    """Parse a camt.006.001.08 ReturnTransaction message (a GetTransaction
-    response, full or delta) into a `Camt006Response`."""
-    root = etree.fromstring(xml_bytes)
-    rtr = root.find(_tag("RtrTx"))
-    if rtr is None:
-        raise ValueError("Root element <RtrTx> not found in camt.006 response")
+    """Parse a camt.006 ReturnTransaction message (any version: a GetTransaction
+    response, full or delta) into a `Camt006Response`. Raises `CamtParseError` if
+    it isn't one."""
+    message = read_root(xml_bytes, "camt.006", "RtrTx")
+    header = _child(message, "MsgHdr")
+    common = {
+        "response_msg_id": _text(_child(header, "MsgId")),
+        "original_msg_id": _text(_path(header, "OrgnlBizQry", "MsgId")),
+        "created_at": _text(_child(header, "CreDtTm")),
+        "query_name": _text(_child(header, "QryNm")),
+    }
+    report_or_error = _child(message, "RptOrErr")
+    if report_or_error is None:
+        raise CamtParseError("No <RptOrErr> in the camt.006 response.")
 
-    hdr = rtr.find(_tag("MsgHdr"))
-    resp_msg_id = _text(hdr, _tag("MsgId"))
-    created_at = _text(hdr, _tag("CreDtTm"))
-    orig_qry = hdr.find(_tag("OrgnlBizQry")) if hdr is not None else None
-    orig_msg_id = _text(orig_qry, _tag("MsgId")) if orig_qry is not None else None
-    query_name = _text(orig_qry, _tag("QryNm")) if orig_qry is not None else None
-
-    rpt_or_err = rtr.find(_tag("RptOrErr"))
-
-    biz_err = rpt_or_err.find(_tag("BizErr")) if rpt_or_err is not None else None
-    if biz_err is not None:
+    error = _child(report_or_error, "OprlErr")
+    if error is not None:
         return Camt006Response(
-            response_msg_id=resp_msg_id,
-            original_msg_id=orig_msg_id,
-            created_at=created_at,
-            query_name=query_name,
-            error_code=_text(biz_err, f"{_tag('Err')}/{_tag('Prtry')}"),
-            error_description=_text(biz_err, _tag("Desc")),
+            **common, error_code=_choice(_child(error, "Err")), error_description=_text(_child(error, "Desc")),
         )
-
-    tx_rpt = rpt_or_err.find(_tag("TxRpt"))
-    query_name = _text(tx_rpt, _tag("QryNm")) or query_name
-
-    tx_rpt_or_err = tx_rpt.find(_tag("TxRptOrErr")) if tx_rpt is not None else None
-    tx_grp = tx_rpt_or_err.find(_tag("TxRpt")) if tx_rpt_or_err is not None else None
-
-    transactions = DeltaTransactionSet(
-        new=_parse_tx_group(tx_grp, "New"),
-        modified=_parse_tx_group(tx_grp, "Mod"),
-        cancelled=_parse_tx_group(tx_grp, "Canc"),
-    )
-
-    return Camt006Response(
-        response_msg_id=resp_msg_id,
-        original_msg_id=orig_msg_id,
-        created_at=created_at,
-        query_name=query_name,
-        transactions=transactions,
-    )
+    report = _child(report_or_error, "BizRpt")
+    if report is None:
+        raise CamtParseError("Neither <BizRpt> nor <OprlErr> in the camt.006 response.")
+    return Camt006Response(**common, transactions=[_parse_transaction(r) for r in _children(report, "TxRpt")])
