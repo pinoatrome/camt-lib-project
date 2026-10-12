@@ -225,14 +225,18 @@ and EndToEndId; they're built (with validation raising `CamtError`) and parsed
 
 ### Liquidity transfer pair (camt.050 / camt.025)
 
-- **camt.050 — LiquidityCreditTransfer.** An outbound instruction to move
-  funds between two accounts held in the same system — for example funding a
-  dedicated cash account from a main cash account. Used for liquidity
-  management, not for customer payments.
-- **camt.025 — Receipt.** The synchronous answer to a camt.050, reporting the
-  outcome as settled (`STLD`), pending (`PDNG`) or rejected (`RJCT`), with the
-  reject code and description when applicable, plus the original message and
-  end-to-end ids so the receipt can be tied to its request.
+- **camt.050 — LiquidityCreditTransfer** (built at .001.07, the newest). An
+  outbound instruction to move funds between two accounts held in the same
+  system — for example funding a dedicated cash account from a main cash
+  account. Used for liquidity management, not for customer payments. It carries
+  the transfer's EndToEndId (`LqdtyTrfId`), the creditor and debtor agents (by
+  BIC when given one) and their accounts, and the amount.
+- **camt.025 — Receipt** (any version read; .001.09 the newest). The synchronous
+  answer to a camt.050: the request it answers (`OrgnlMsgId/MsgId`), so the
+  receipt can be tied to it, and the outcome (`ReqHdlg/Sts/Cd`) as settled
+  (`STLD`), pending (`PDNG`) or rejected (`RJCT`), with the reason code
+  (`StsRsn/Rsn/Cd`) and description when rejected. The end-to-end id is read
+  only when the receipt carries the long payment identification.
 
 ## Scope
 
@@ -254,8 +258,8 @@ Cash Management message set of the 2025/2026 catalogue, the newest version of ea
 family the library handles. A message in an older version is checked against the
 newest with its namespace changed to that version's.
 
-camt.052, camt.053, camt.054, camt.029 and camt.056 are valid. The other families
-aren't yet: their structure isn't ISO 20022's, and each is to be rewritten to its
-newest version (liquidity transfers, reservations, account and business day
+camt.052, camt.053, camt.054, camt.050, camt.025, camt.029 and camt.056 are
+valid. The other families aren't yet: their structure isn't ISO 20022's, and each
+is to be rewritten to its newest version (reservations, account and business day
 services). Until then their checks are marked `xfail(strict=True)`, with the
 reason, so a fix makes the mark fail until it's removed.

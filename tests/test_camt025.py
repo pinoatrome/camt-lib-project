@@ -1,118 +1,79 @@
+from pathlib import Path
+
 import pytest
 
-from camt.camt025 import ReceiptResult, parse_camt025
+from camt import CamtParseError
+from camt.camt025 import PENDING, REJECTED, SETTLED, ReceiptResult, parse_camt025
 
-_NS = "urn:iso:std:iso:20022:tech:xsd:camt.025.001.05"
-
-
-def _receipt_xml(body: str) -> bytes:
-    return f"""<?xml version="1.0" encoding="UTF-8"?>
-<Document xmlns="{_NS}">
-  <Receipt>
-    <MsgHdr>
-      <MsgId>RCPT-0001</MsgId>
-      <CreDtTm>2026-09-02T10:05:00</CreDtTm>
-    </MsgHdr>
-    {body}
-  </Receipt>
-</Document>""".encode("utf-8")
+FIXTURES = Path(__file__).parent / "fixtures"
+SETTLED_XML = (FIXTURES / "camt025_settled_sample.xml").read_bytes()
+REJECTED_XML = (FIXTURES / "camt025_rejected_sample.xml").read_bytes()
 
 
 def test_parse_camt025_settled_receipt():
-    xml = _receipt_xml(
-        """
-    <RctDtls>
-      <OrgnlBizInstr>
-        <MsgId>LT-0001</MsgId>
-      </OrgnlBizInstr>
-      <OrgnlEndToEndId>E2E-0001</OrgnlEndToEndId>
-      <ReqHdlg>
-        <StsRsn>
-          <Cd>STLD</Cd>
-        </StsRsn>
-      </ReqHdlg>
-    </RctDtls>
-    """
-    )
-    result = parse_camt025(xml)
+    result = parse_camt025(SETTLED_XML)
 
     assert isinstance(result, ReceiptResult)
     assert result.receipt_msg_id == "RCPT-0001"
     assert result.created_at == "2026-09-02T10:05:00"
-    assert result.status == "STLD"
+    assert result.status == SETTLED
     assert result.original_msg_id == "LT-0001"
-    assert result.original_e2e_id == "E2E-0001"
+    assert result.original_e2e_id is None
     assert result.reject_code is None
     assert result.reject_desc is None
 
 
 def test_parse_camt025_pending_receipt():
-    xml = _receipt_xml(
-        """
-    <RctDtls>
-      <OrgnlBizInstr>
-        <MsgId>LT-0002</MsgId>
-      </OrgnlBizInstr>
-      <OrgnlEndToEndId>E2E-0002</OrgnlEndToEndId>
-      <ReqHdlg>
-        <StsRsn>
-          <Cd>PDNG</Cd>
-        </StsRsn>
-      </ReqHdlg>
-    </RctDtls>
-    """
-    )
-    result = parse_camt025(xml)
+    result = parse_camt025(SETTLED_XML.replace(b"<Cd>STLD</Cd>", b"<Cd>PDNG</Cd>"))
 
-    assert result.status == "PDNG"
-    assert result.original_msg_id == "LT-0002"
-    assert result.original_e2e_id == "E2E-0002"
+    assert result.status == PENDING
+    assert result.original_msg_id == "LT-0001"
 
 
 def test_parse_camt025_rejected_receipt():
-    xml = _receipt_xml(
-        """
-    <ReqRjctd>
-      <RjctdReqRef>LT-0003</RjctdReqRef>
-      <StsRsn>
-        <Cd>AC04</Cd>
-        <AddtlInf>Insufficient funds</AddtlInf>
-      </StsRsn>
-    </ReqRjctd>
-    """
-    )
-    result = parse_camt025(xml)
+    result = parse_camt025(REJECTED_XML)
 
-    assert result.status == "RJCT"
+    assert result.status == REJECTED
     assert result.original_msg_id == "LT-0003"
-    assert result.reject_code == "AC04"
-    assert result.reject_desc == "Insufficient funds"
-    assert result.original_e2e_id is None
+    assert result.reject_code == "AM04"
+    assert result.reject_desc == "Insufficient funds on DCA-IT-UNCRITM1-0001."
 
 
-def test_parse_camt025_missing_root_element_raises():
+def test_parse_camt025_rejection_described_in_desc():
+    xml = REJECTED_XML.replace(b"<AddtlInf>Insufficient funds</AddtlInf>", b"").replace(
+        b"<AddtlInf>on DCA-IT-UNCRITM1-0001.</AddtlInf>", b""
+    ).replace(b"</StsRsn>", b"</StsRsn>\n        <Desc>Insufficient funds</Desc>")
+
+    assert parse_camt025(xml).reject_desc == "Insufficient funds"
+
+
+def test_parse_camt025_reads_the_end_to_end_id_when_there_is_one():
+    xml = SETTLED_XML.replace(b"</OrgnlMsgId>", b"""</OrgnlMsgId>
+      <OrgnlPmtId><LngBizId><IntrBkSttlmAmt>10</IntrBkSttlmAmt><IntrBkSttlmDt>2026-09-02</IntrBkSttlmDt>
+        <InstgAgt><FinInstnId><BICFI>UNCRITM1XXX</BICFI></FinInstnId></InstgAgt>
+        <InstdAgt><FinInstnId><BICFI>DESPEUFFXXX</BICFI></FinInstnId></InstdAgt>
+        <EndToEndId>E2E-0001</EndToEndId></LngBizId></OrgnlPmtId>""")
+
+    assert parse_camt025(xml).original_e2e_id == "E2E-0001"
+
+
+def test_parse_camt025_any_version():
+    assert parse_camt025(SETTLED_XML.replace(b"camt.025.001.09", b"camt.025.001.05")).status == SETTLED
+
+
+def test_parse_camt025_not_a_receipt_raises():
     bogus = b'<?xml version="1.0"?><Document xmlns="urn:example"><SomethingElse/></Document>'
-    with pytest.raises(ValueError, match="Receipt"):
+    with pytest.raises(CamtParseError, match="camt.025"):
         parse_camt025(bogus)
 
 
-def test_parse_camt025_missing_rct_dtls_and_req_rjctd_raises():
-    xml = _receipt_xml("<Other/>")
-    with pytest.raises(ValueError, match="RctDtls"):
+def test_parse_camt025_missing_rct_dtls_raises():
+    xml = SETTLED_XML.split(b"<RctDtls>")[0] + b"</Rct></Document>"
+    with pytest.raises(CamtParseError, match="RctDtls"):
         parse_camt025(xml)
 
 
 def test_parse_camt025_defaults_status_to_unkn_when_code_missing():
-    xml = _receipt_xml(
-        """
-    <RctDtls>
-      <OrgnlBizInstr>
-        <MsgId>LT-0004</MsgId>
-      </OrgnlBizInstr>
-    </RctDtls>
-    """
-    )
-    result = parse_camt025(xml)
+    xml = SETTLED_XML.replace(b"<Sts>\n          <Cd>STLD</Cd>\n        </Sts>", b"")
 
-    assert result.status == "UNKN"
-    assert result.original_msg_id == "LT-0004"
+    assert parse_camt025(xml).status == "UNKN"

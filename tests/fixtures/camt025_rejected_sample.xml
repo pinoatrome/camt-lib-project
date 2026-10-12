@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- DESP's receipt for a camt.050 liquidity transfer it rejected, with the reason. -->
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.025.001.09">
+  <Rct>
+    <MsgHdr>
+      <MsgId>RCPT-0003</MsgId>
+      <CreDtTm>2026-09-02T10:06:00</CreDtTm>
+    </MsgHdr>
+    <RctDtls>
+      <OrgnlMsgId>
+        <MsgId>LT-0003</MsgId>
+        <MsgNmId>camt.050.001.07</MsgNmId>
+      </OrgnlMsgId>
+      <ReqHdlg>
+        <Sts>
+          <Cd>RJCT</Cd>
+        </Sts>
+        <StsRsn>
+          <Rsn>
+            <Cd>AM04</Cd>
+          </Rsn>
+          <AddtlInf>Insufficient funds</AddtlInf>
+          <AddtlInf>on DCA-IT-UNCRITM1-0001.</AddtlInf>
+        </StsRsn>
+      </ReqHdlg>
+    </RctDtls>
+  </Rct>
+</Document>
