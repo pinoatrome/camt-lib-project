@@ -1,13 +1,16 @@
 from datetime import datetime
 
+import pytest
 from lxml import etree
+
+from camt import CamtError
 
 from camt.camt048 import (
     build_modify_reservation_request_bytes,
     build_modify_reservation_request_string,
 )
 
-_NS = {"n": "urn:iso:std:iso:20022:tech:xsd:camt.048.001.05"}
+_NS = {"n": "urn:iso:std:iso:20022:tech:xsd:camt.048.001.07"}
 
 
 def test_build_modify_reservation_request_is_well_formed_and_uses_camt048_namespace():
@@ -19,7 +22,7 @@ def test_build_modify_reservation_request_is_well_formed_and_uses_camt048_namesp
         creation_datetime=datetime(2026, 9, 25, 9, 0, 0),
     )
     root = etree.fromstring(xml)
-    assert root.tag == "{urn:iso:std:iso:20022:tech:xsd:camt.048.001.05}Document"
+    assert root.tag == "{urn:iso:std:iso:20022:tech:xsd:camt.048.001.07}Document"
 
 
 def test_build_modify_reservation_request_encodes_iban_account():
@@ -27,7 +30,7 @@ def test_build_modify_reservation_request_encodes_iban_account():
         "IT60X0542811101000000123456", "MMR", 75000.0, msg_id="MOD-1"
     )
     root = etree.fromstring(xml)
-    iban = root.find(".//n:RsvatnModfyInstr/n:AcctId/n:Id/n:IBAN", namespaces=_NS)
+    iban = root.find("n:ModfyRsvatn/n:RsvatnId/n:Cur/n:AcctId/n:IBAN", namespaces=_NS)
     assert iban.text == "IT60X0542811101000000123456"
 
 
@@ -36,8 +39,8 @@ def test_build_modify_reservation_request_encodes_proprietary_account():
         "DEAN-IT-0001-ALPHA", "MMR", 75000.0, id_type="DEAN", msg_id="MOD-1"
     )
     root = etree.fromstring(xml)
-    othr_id = root.find(".//n:AcctId/n:Id/n:Othr/n:Id", namespaces=_NS)
-    scheme = root.find(".//n:AcctId/n:Id/n:Othr/n:SchmeNm/n:Prtry", namespaces=_NS)
+    othr_id = root.find("n:ModfyRsvatn/n:RsvatnId/n:Cur/n:AcctId/n:Othr/n:Id", namespaces=_NS)
+    scheme = root.find("n:ModfyRsvatn/n:RsvatnId/n:Cur/n:AcctId/n:Othr/n:SchmeNm/n:Prtry", namespaces=_NS)
     assert othr_id.text == "DEAN-IT-0001-ALPHA"
     assert scheme.text == "DEAN"
 
@@ -51,8 +54,8 @@ def test_build_modify_reservation_request_carries_type_and_new_amount():
         msg_id="MOD-1",
     )
     root = etree.fromstring(xml)
-    rsvatn_tp = root.find(".//n:RsvatnModfyInstr/n:RsvatnTp/n:Cd", namespaces=_NS)
-    new_amt = root.find(".//n:RsvatnModfyInstr/n:NewRsvatnAmt", namespaces=_NS)
+    rsvatn_tp = root.find("n:ModfyRsvatn/n:RsvatnId/n:Cur/n:Tp/n:Cd", namespaces=_NS)
+    new_amt = root.find("n:ModfyRsvatn/n:NewRsvatnValSet/n:Amt/n:AmtWthCcy", namespaces=_NS)
     msg_id = root.find(".//n:MsgHdr/n:MsgId", namespaces=_NS)
 
     assert rsvatn_tp.text == "MMR"
@@ -79,3 +82,16 @@ def test_build_modify_reservation_request_string_matches_bytes_decoded():
         "IT60X0542811101000000123456", "MMR", 75000.0, **kwargs
     )
     assert xml_string == xml_bytes.decode("utf-8")
+
+
+def test_build_modify_reservation_request_refuses_a_negative_amount():
+    with pytest.raises(CamtError, match="can't be negative"):
+        build_modify_reservation_request_bytes("IT60X0542811101000000123456", "UPAR", -1.0)
+
+
+def test_build_modify_reservation_request_follows_the_schema_order():
+    root = etree.fromstring(build_modify_reservation_request_bytes("IT60X0542811101000000123456", "UPAR", 10.0))
+
+    assert [etree.QName(child).localname for child in root.find("n:ModfyRsvatn", namespaces=_NS)] == [
+        "MsgHdr", "RsvatnId", "NewRsvatnValSet",
+    ]

@@ -7,7 +7,7 @@ from camt.camt049 import (
     build_delete_reservation_request_string,
 )
 
-_NS = {"n": "urn:iso:std:iso:20022:tech:xsd:camt.049.001.05"}
+_NS = {"n": "urn:iso:std:iso:20022:tech:xsd:camt.049.001.07"}
 
 
 def test_build_delete_reservation_request_is_well_formed_and_uses_camt049_namespace():
@@ -18,7 +18,7 @@ def test_build_delete_reservation_request_is_well_formed_and_uses_camt049_namesp
         creation_datetime=datetime(2026, 9, 25, 9, 0, 0),
     )
     root = etree.fromstring(xml)
-    assert root.tag == "{urn:iso:std:iso:20022:tech:xsd:camt.049.001.05}Document"
+    assert root.tag == "{urn:iso:std:iso:20022:tech:xsd:camt.049.001.07}Document"
 
 
 def test_build_delete_reservation_request_encodes_iban_account():
@@ -26,7 +26,7 @@ def test_build_delete_reservation_request_encodes_iban_account():
         "IT60X0542811101000000123456", "MMR", msg_id="DEL-1"
     )
     root = etree.fromstring(xml)
-    iban = root.find(".//n:RsvatnDelInstr/n:AcctId/n:Id/n:IBAN", namespaces=_NS)
+    iban = root.find("n:DelRsvatn/n:CurRsvatn/n:AcctId/n:IBAN", namespaces=_NS)
     assert iban.text == "IT60X0542811101000000123456"
 
 
@@ -35,8 +35,8 @@ def test_build_delete_reservation_request_encodes_proprietary_account():
         "DEAN-IT-0001-ALPHA", "MMR", id_type="DEAN", msg_id="DEL-1"
     )
     root = etree.fromstring(xml)
-    othr_id = root.find(".//n:AcctId/n:Id/n:Othr/n:Id", namespaces=_NS)
-    scheme = root.find(".//n:AcctId/n:Id/n:Othr/n:SchmeNm/n:Prtry", namespaces=_NS)
+    othr_id = root.find("n:DelRsvatn/n:CurRsvatn/n:AcctId/n:Othr/n:Id", namespaces=_NS)
+    scheme = root.find("n:DelRsvatn/n:CurRsvatn/n:AcctId/n:Othr/n:SchmeNm/n:Prtry", namespaces=_NS)
     assert othr_id.text == "DEAN-IT-0001-ALPHA"
     assert scheme.text == "DEAN"
 
@@ -46,7 +46,7 @@ def test_build_delete_reservation_request_carries_reservation_type_and_msg_id():
         "IT60X0542811101000000123456", "MMR", msg_id="DEL-1"
     )
     root = etree.fromstring(xml)
-    rsvatn_tp = root.find(".//n:RsvatnDelInstr/n:RsvatnTp/n:Cd", namespaces=_NS)
+    rsvatn_tp = root.find("n:DelRsvatn/n:CurRsvatn/n:Tp/n:Cd", namespaces=_NS)
     msg_id = root.find(".//n:MsgHdr/n:MsgId", namespaces=_NS)
 
     assert rsvatn_tp.text == "MMR"
@@ -58,7 +58,7 @@ def test_build_delete_reservation_request_has_no_amount():
         "IT60X0542811101000000123456", "MMR", msg_id="DEL-1"
     )
     root = etree.fromstring(xml)
-    assert root.find(".//n:NewRsvatnAmt", namespaces=_NS) is None
+    assert root.find(".//n:NewRsvatnValSet", namespaces=_NS) is None
 
 
 def test_build_delete_reservation_request_auto_generates_msg_id_when_omitted():

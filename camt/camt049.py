@@ -1,4 +1,4 @@
-"""Build ISO 20022 camt.049.001.05 (DeleteReservation) request documents.
+"""Build ISO 20022 camt.049.001.07 (DeleteReservation) request documents.
 
 Like camt.048 (see `camt.camt048`), this is an outbound *instruction* rather
 than a Get/Return query -- it removes a reservation already held against an
@@ -6,6 +6,8 @@ account (see `camt.camt046`/`camt.camt047` for querying existing
 reservations) instead of asking for its current state. Its synchronous
 response is a camt.025 Receipt (see `camt.camt025`), so, like camt.048, it's
 built here directly rather than through `camt.builder`.
+
+The reservation is named in `CurRsvatn`: its type and account.
 """
 from __future__ import annotations
 
@@ -14,18 +16,11 @@ from datetime import datetime
 
 from lxml import etree
 
+from ._reservation import build_reservation_id
 from .builder import sub
 from .enums import iso20022_namespace
 
-
-def _account_element(parent: etree._Element, account_id: str, id_type: str) -> None:
-    id_elem = sub(parent, "Id")
-    if id_type == "IBAN":
-        sub(id_elem, "IBAN", account_id)
-    else:
-        othr = sub(id_elem, "Othr")
-        sub(othr, "Id", account_id)
-        sub(sub(othr, "SchmeNm"), "Prtry", id_type)
+VARIANT = "001.07"
 
 
 def build_delete_reservation_request_element(
@@ -35,7 +30,7 @@ def build_delete_reservation_request_element(
     id_type: str = "IBAN",
     msg_id: str | None = None,
     creation_datetime: datetime | None = None,
-    schema_variant: str = "001.05",
+    schema_variant: str = VARIANT,
 ) -> etree._Element:
     """Build the `<Document>` tree for a camt.049 DeleteReservation request,
     removing one account's `reservation_type` reservation (e.g. "MMR" for a
@@ -55,12 +50,7 @@ def build_delete_reservation_request_element(
     sub(msg_hdr, "MsgId", msg_id)
     sub(msg_hdr, "CreDtTm", created_at)
 
-    instr = sub(del_rsvatn, "RsvatnDelInstr")
-    sub(instr, "MsgId", msg_id)
-    sub(instr, "CreDtTm", created_at)
-
-    _account_element(sub(instr, "AcctId"), account_id, id_type)
-    sub(sub(instr, "RsvatnTp"), "Cd", reservation_type)
+    build_reservation_id(del_rsvatn, "CurRsvatn", account_id, reservation_type, id_type)
 
     return root
 
@@ -72,7 +62,7 @@ def build_delete_reservation_request_bytes(
     id_type: str = "IBAN",
     msg_id: str | None = None,
     creation_datetime: datetime | None = None,
-    schema_variant: str = "001.05",
+    schema_variant: str = VARIANT,
     pretty_print: bool = True,
 ) -> bytes:
     """Build a camt.049 DeleteReservation request as XML bytes."""
@@ -96,7 +86,7 @@ def build_delete_reservation_request_string(
     id_type: str = "IBAN",
     msg_id: str | None = None,
     creation_datetime: datetime | None = None,
-    schema_variant: str = "001.05",
+    schema_variant: str = VARIANT,
     pretty_print: bool = True,
 ) -> str:
     """Build a camt.049 DeleteReservation request as an XML string."""

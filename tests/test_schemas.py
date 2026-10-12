@@ -8,8 +8,8 @@ message valid in both is valid in its own version too.
 
 What isn't valid yet is marked `xfail(strict=True)`, with the reason: fixing it makes
 the test pass, and the strict mark then fails until it's removed. The messages are
-moving to the newest versions family by family (camt.052/053/054 and the liquidity
-transfers, camt.050/025, are there).
+moving to the newest versions family by family (camt.052/053/054, the liquidity
+transfers, camt.050/025, and the reservations, camt.046 to camt.049, are there).
 """
 from datetime import date, datetime, timezone
 from decimal import Decimal
@@ -56,7 +56,6 @@ IBAN = "IT60X0542811101000000123456"
 
 # Not valid yet: the structure the library writes or reads isn't ISO 20022's. Each
 # family is to be rewritten to its newest version, with the mock DESP that speaks it.
-RESERVATIONS = "reservations (camt.046 to camt.049): not ISO's structure yet"
 ACCOUNTS = "account and business day services (camt.003 to camt.006, camt.018, camt.019): not ISO's structure yet"
 
 
@@ -160,9 +159,6 @@ BUILT_NOT_VALID_YET = {
     "camt.003": ACCOUNTS,
     "camt.005": ACCOUNTS,
     "camt.018": ACCOUNTS,
-    "camt.046": RESERVATIONS,
-    "camt.048": RESERVATIONS,
-    "camt.049": RESERVATIONS,
 }
 
 # Fixtures that are invalid on purpose: what the parser must tolerate.
@@ -178,8 +174,6 @@ FIXTURES_NOT_VALID_YET = {
     "camt006_full_sample.xml": ACCOUNTS,
     "camt019_error_sample.xml": ACCOUNTS,
     "camt019_success_sample.xml": ACCOUNTS,
-    "camt047_error_sample.xml": RESERVATIONS,
-    "camt047_success_sample.xml": RESERVATIONS,
 }
 
 # Families no built message nor fixture checks yet: parsed only from inline XML.
