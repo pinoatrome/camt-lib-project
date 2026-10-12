@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.052.001.02">
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.052.001.14">
   <BkToCstmrAcctRpt>
     <GrpHdr>
       <MsgId>MSG-RPT-0001</MsgId>
@@ -37,7 +37,9 @@
       <Ntry>
         <Amt Ccy="EUR">120.00</Amt>
         <CdtDbtInd>CRDT</CdtDbtInd>
-        <Sts>PDNG</Sts>
+        <Sts>
+          <Cd>PDNG</Cd>
+        </Sts>
         <BookgDt>
           <DtTm>2026-01-04T11:30:00</DtTm>
         </BookgDt>

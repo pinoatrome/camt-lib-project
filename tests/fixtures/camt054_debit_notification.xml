@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.054.001.08">
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.054.001.14">
   <BkToCstmrDbtCdtNtfctn>
     <GrpHdr>
       <MsgId>NOTIF-DBIT-0001</MsgId>
@@ -18,10 +18,13 @@
       <Ntry>
         <Amt Ccy="EUR">100.00</Amt>
         <CdtDbtInd>DBIT</CdtDbtInd>
-        <Sts>BOOK</Sts>
+        <Sts>
+          <Cd>BOOK</Cd>
+        </Sts>
         <BookgDt>
           <Dt>2026-09-04</Dt>
         </BookgDt>
+        <BkTxCd/>
         <NtryDtls>
           <TxDtls>
             <Refs>
@@ -31,7 +34,9 @@
             <CdtDbtInd>DBIT</CdtDbtInd>
             <RltdPties>
               <Cdtr>
-                <Nm>Beneficiary Merchant</Nm>
+                <Pty>
+                  <Nm>Beneficiary Merchant</Nm>
+                </Pty>
               </Cdtr>
             </RltdPties>
           </TxDtls>

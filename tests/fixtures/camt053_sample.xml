@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.14">
   <BkToCstmrStmt>
     <GrpHdr>
       <MsgId>MSG-0001</MsgId>
@@ -51,16 +51,18 @@
         </Dt>
       </Bal>
       <Ntry>
-        <AcctSvcrRef>SVCR-REF-1</AcctSvcrRef>
         <Amt Ccy="EUR">300.50</Amt>
         <CdtDbtInd>CRDT</CdtDbtInd>
-        <Sts>BOOK</Sts>
+        <Sts>
+          <Cd>BOOK</Cd>
+        </Sts>
         <BookgDt>
           <Dt>2026-01-04</Dt>
         </BookgDt>
         <ValDt>
           <Dt>2026-01-04</Dt>
         </ValDt>
+        <AcctSvcrRef>SVCR-REF-1</AcctSvcrRef>
         <BkTxCd>
           <Domn>
             <Cd>PMNT</Cd>
@@ -70,19 +72,20 @@
             </Fmly>
           </Domn>
         </BkTxCd>
-        <AddtlNtryInf>Invoice payment</AddtlNtryInf>
         <NtryDtls>
           <TxDtls>
             <Refs>
+              <AcctSvcrRef>SVCR-REF-1</AcctSvcrRef>
               <InstrId>INSTR-1</InstrId>
               <EndToEndId>E2E-1</EndToEndId>
-              <AcctSvcrRef>SVCR-REF-1</AcctSvcrRef>
             </Refs>
             <Amt Ccy="EUR">300.50</Amt>
             <CdtDbtInd>CRDT</CdtDbtInd>
             <RltdPties>
               <Dbtr>
-                <Nm>Widget Buyer Ltd</Nm>
+                <Pty>
+                  <Nm>Widget Buyer Ltd</Nm>
+                </Pty>
               </Dbtr>
               <DbtrAcct>
                 <Id>
@@ -95,18 +98,21 @@
             </RmtInf>
           </TxDtls>
         </NtryDtls>
+        <AddtlNtryInf>Invoice payment</AddtlNtryInf>
       </Ntry>
       <Ntry>
-        <AcctSvcrRef>SVCR-REF-2</AcctSvcrRef>
         <Amt Ccy="EUR">50.00</Amt>
         <CdtDbtInd>DBIT</CdtDbtInd>
-        <Sts>BOOK</Sts>
+        <Sts>
+          <Cd>BOOK</Cd>
+        </Sts>
         <BookgDt>
           <Dt>2026-01-04</Dt>
         </BookgDt>
         <ValDt>
           <Dt>2026-01-04</Dt>
         </ValDt>
+        <AcctSvcrRef>SVCR-REF-2</AcctSvcrRef>
         <BkTxCd>
           <Domn>
             <Cd>PMNT</Cd>

@@ -1,5 +1,6 @@
 from datetime import date
 from decimal import Decimal
+import re
 from pathlib import Path
 
 import pytest
@@ -70,6 +71,17 @@ def test_parse_party_bic_in_schema_02_form():
     xml = (FIXTURES / "camt052_sample.xml").read_bytes().replace(b"AnyBIC", b"BICOrBEI")
 
     assert parse_bytes(xml).statements[0].account_owner.bic == "ACMEITMMXXX"
+
+
+def test_parse_related_party_in_schema_02_form():
+    """Before .04 a related party (`RltdPties/Dbtr`) has no `Pty` wrapper."""
+    xml = (FIXTURES / "camt053_sample.xml").read_bytes()
+    xml = re.sub(rb"<Dbtr>\s*<Pty>(.*?)</Pty>\s*</Dbtr>", rb"<Dbtr>\1</Dbtr>", xml, flags=re.S)
+    assert b"<Pty>" not in xml
+
+    debtor = parse_bytes(xml).statements[0].entries[0].transaction_details[0].debtor
+    assert debtor == parse_file(FIXTURES / "camt053_sample.xml").statements[0].entries[0].transaction_details[0].debtor
+    assert debtor.name
 
 
 def test_party_with_only_a_bic_is_kept():

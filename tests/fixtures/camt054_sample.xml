@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.054.001.02">
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.054.001.14">
   <BkToCstmrDbtCdtNtfctn>
     <GrpHdr>
       <MsgId>MSG-NTFY-0001</MsgId>
@@ -15,13 +15,16 @@
         <Ccy>EUR</Ccy>
       </Acct>
       <Ntry>
-        <AcctSvcrRef>SVCR-REF-9</AcctSvcrRef>
         <Amt Ccy="EUR">75.25</Amt>
         <CdtDbtInd>CRDT</CdtDbtInd>
-        <Sts>BOOK</Sts>
+        <Sts>
+          <Cd>BOOK</Cd>
+        </Sts>
         <BookgDt>
           <Dt>2026-01-04</Dt>
         </BookgDt>
+        <AcctSvcrRef>SVCR-REF-9</AcctSvcrRef>
+        <BkTxCd/>
         <NtryDtls>
           <TxDtls>
             <Refs>
@@ -31,7 +34,9 @@
             <CdtDbtInd>CRDT</CdtDbtInd>
             <RltdPties>
               <Dbtr>
-                <Nm>Some Payer</Nm>
+                <Pty>
+                  <Nm>Some Payer</Nm>
+                </Pty>
               </Dbtr>
             </RltdPties>
             <RmtInf>

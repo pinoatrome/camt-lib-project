@@ -6,8 +6,9 @@ typed Python objects.
 
 Parsing matches elements by local name only, so a single code path handles
 different schema versions of the same message family (e.g. camt.053.001.02 vs
-.001.08) without per-version branches. XML generation targets the `.001.02`
-variant of each family.
+.001.14) without per-version branches. XML generation targets the newest version
+of the ISO 20022 catalogue, `.001.14` for camt.052, camt.053 and camt.054
+(`camt.enums.STATEMENT_VARIANT`), checked against its XSD (see [Tests](#tests)).
 
 ## Install
 
@@ -246,3 +247,15 @@ transaction details/remittance info). It does not implement the full CAMT XSD
 pip install -e .[test]
 pytest tests
 ```
+
+`tests/test_schemas.py` checks every message the library builds, and every
+fixture in `tests/fixtures/`, against the ISO 20022 schemas in `tests/xsd/`: the
+Cash Management message set of the 2025/2026 catalogue, the newest version of each
+family the library handles. A message in an older version is checked against the
+newest with its namespace changed to that version's.
+
+camt.052, camt.053, camt.054, camt.029 and camt.056 are valid. The other families
+aren't yet: their structure isn't ISO 20022's, and each is to be rewritten to its
+newest version (liquidity transfers, reservations, account and business day
+services). Until then their checks are marked `xfail(strict=True)`, with the
+reason, so a fix makes the mark fail until it's removed.

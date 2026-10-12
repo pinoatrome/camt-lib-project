@@ -6,6 +6,11 @@ def iso20022_namespace(message_family: str, variant: str = "001.02") -> str:
     return f"urn:iso:std:iso:20022:tech:xsd:{message_family}.{variant}"
 
 
+# The version `camt.builder` writes camt.052, camt.053 and camt.054 in: the newest of the
+# ISO 20022 catalogue (2025/2026 edition), the one tests/xsd/ checks them against.
+STATEMENT_VARIANT = "001.14"
+
+
 class MessageType(str, Enum):
     """Supported ISO 20022 CAMT message families."""
 
@@ -15,7 +20,8 @@ class MessageType(str, Enum):
 
     @property
     def namespace(self) -> str:
-        return iso20022_namespace(self.value)
+        """The namespace `camt.builder` writes it in (STATEMENT_VARIANT)."""
+        return iso20022_namespace(self.value, STATEMENT_VARIANT)
 
     @property
     def group_wrapper_tag(self) -> str:
