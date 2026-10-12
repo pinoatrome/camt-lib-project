@@ -1,24 +1,31 @@
-"""Parse ISO 20022 camt.025.001.05 (Receipt) messages.
+"""Parse ISO 20022 camt.025 (Receipt) messages.
 
 camt.025 is the synchronous response to a camt.050 LiquidityCreditTransfer
 request (see `camt.camt050`) — settled, pending, or rejected — so, like that
 request, it's parsed here directly rather than through `camt.parser`.
+
+A receipt is `Rct`: a `MsgHdr`, then `RctDtls` with the request it answers
+(`OrgnlMsgId/MsgId`) and how it was handled (`ReqHdlg`: the status code
+`Sts/Cd`, and for a rejection the reason `StsRsn/Rsn/Cd` with its `AddtlInf`).
+Parsing matches elements by local name, so any camt.025 version reads; the
+library's checks use .001.09, the newest.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from lxml import etree
+from ._investigation import read_root
+from .exceptions import CamtParseError
+from .parser import _child, _children, _path, _text
 
-from .enums import iso20022_namespace
-
-_NAMESPACE = iso20022_namespace("camt.025", "001.05")
-_NS_PREFIX = f"{{{_NAMESPACE}}}"
+SETTLED = "STLD"
+PENDING = "PDNG"
+REJECTED = "RJCT"
 
 
 @dataclass
 class ReceiptResult:
-    """Parsed camt.025.001.05 Receipt for a camt.050 LiquidityCreditTransfer."""
+    """Parsed camt.025 Receipt for a camt.050 LiquidityCreditTransfer."""
 
     receipt_msg_id: str | None
     created_at: str | None
@@ -29,54 +36,31 @@ class ReceiptResult:
     reject_desc: str | None = None
 
 
-def _tag(name: str) -> str:
-    return f"{_NS_PREFIX}{name}"
-
-
-def _text(el: etree._Element | None, path: str) -> str | None:
-    if el is None:
-        return None
-    found = el.find(path)
-    return found.text if found is not None else None
-
-
 def parse_camt025(xml_bytes: bytes) -> ReceiptResult:
-    """Parse a camt.025.001.05 Receipt into a `ReceiptResult`.
+    """Parse a camt.025 Receipt (any version) into a `ReceiptResult`, from its first
+    `RctDtls` and that one's first `ReqHdlg`:
 
-    Three outcome paths:
-      `<RctDtls>` with status code STLD -> settled
-      `<RctDtls>` with status code PDNG -> pending/queued
-      `<ReqRjctd>`                      -> rejected, with a reason code/description
+      `Sts/Cd` STLD -> settled
+      `Sts/Cd` PDNG -> pending/queued
+      `Sts/Cd` RJCT -> rejected, with `StsRsn/Rsn/Cd` and its `AddtlInf` lines (or `Desc`)
+
+    `original_e2e_id` is the `OrgnlPmtId/LngBizId/EndToEndId`, when the receipt has one.
+    Raises `CamtParseError` if it isn't a readable camt.025 receipt.
     """
-    root = etree.fromstring(xml_bytes)
-    rcpt = root.find(_tag("Receipt"))
-    if rcpt is None:
-        raise ValueError("<Receipt> root element not found in camt.025")
-
-    hdr = rcpt.find(_tag("MsgHdr"))
-    receipt_msg_id = _text(hdr, _tag("MsgId"))
-    created_at = _text(hdr, _tag("CreDtTm"))
-
-    rjctd = rcpt.find(_tag("ReqRjctd"))
-    if rjctd is not None:
-        return ReceiptResult(
-            receipt_msg_id=receipt_msg_id,
-            created_at=created_at,
-            status="RJCT",
-            original_msg_id=_text(rjctd, _tag("RjctdReqRef")),
-            reject_code=_text(rjctd, f"{_tag('StsRsn')}/{_tag('Cd')}"),
-            reject_desc=_text(rjctd, f"{_tag('StsRsn')}/{_tag('AddtlInf')}"),
-        )
-
-    rct_dtls = rcpt.find(_tag("RctDtls"))
-    if rct_dtls is None:
-        raise ValueError("Neither <RctDtls> nor <ReqRjctd> found in camt.025")
-
-    orig_instr = rct_dtls.find(_tag("OrgnlBizInstr"))
+    receipt = read_root(xml_bytes, "camt.025", "Rct")
+    header = _child(receipt, "MsgHdr")
+    details = _child(receipt, "RctDtls")
+    if details is None:
+        raise CamtParseError("No <RctDtls> in the camt.025 receipt.")
+    handling = _child(details, "ReqHdlg")
+    reason = _child(handling, "StsRsn")
+    lines = [_text(line) for line in _children(reason, "AddtlInf")]
     return ReceiptResult(
-        receipt_msg_id=receipt_msg_id,
-        created_at=created_at,
-        status=_text(rct_dtls, f"{_tag('ReqHdlg')}/{_tag('StsRsn')}/{_tag('Cd')}") or "UNKN",
-        original_msg_id=_text(orig_instr, _tag("MsgId")),
-        original_e2e_id=_text(rct_dtls, _tag("OrgnlEndToEndId")),
+        receipt_msg_id=_text(_child(header, "MsgId")),
+        created_at=_text(_child(header, "CreDtTm")),
+        status=_text(_path(handling, "Sts", "Cd")) or _text(_path(handling, "Sts", "Prtry")) or "UNKN",
+        original_msg_id=_text(_path(details, "OrgnlMsgId", "MsgId")),
+        original_e2e_id=_text(_path(details, "OrgnlPmtId", "LngBizId", "EndToEndId")),
+        reject_code=_text(_path(reason, "Rsn", "Cd")) or _text(_path(reason, "Rsn", "Prtry")),
+        reject_desc=" ".join(line for line in lines if line) or _text(_child(handling, "Desc")),
     )

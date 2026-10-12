@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- DESP's receipt for a camt.050 liquidity transfer it settled. -->
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.025.001.09">
+  <Rct>
+    <MsgHdr>
+      <MsgId>RCPT-0001</MsgId>
+      <CreDtTm>2026-09-02T10:05:00</CreDtTm>
+    </MsgHdr>
+    <RctDtls>
+      <OrgnlMsgId>
+        <MsgId>LT-0001</MsgId>
+        <MsgNmId>camt.050.001.07</MsgNmId>
+      </OrgnlMsgId>
+      <ReqHdlg>
+        <Sts>
+          <Cd>STLD</Cd>
+        </Sts>
+      </ReqHdlg>
+    </RctDtls>
+  </Rct>
+</Document>
