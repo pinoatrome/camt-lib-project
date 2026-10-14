@@ -1,5 +1,5 @@
 """The documents `camt.testing` makes: valid, and what the test asked for."""
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 import pytest
@@ -99,3 +99,15 @@ def test_a_receipt_is_what_was_asked():
     rejected = parse_camt025(receipt_xml(original_message_id="PSPLT-1", status="RJCT", reject_desc="No funds"))
     assert (settled.status, settled.original_msg_id) == ("STLD", "PSPLT-1")
     assert (rejected.status, rejected.reject_code, rejected.reject_desc) == ("RJCT", "AM04", "No funds")
+
+
+def test_an_entry_can_have_no_transaction_details():
+    [entry] = parse_bytes(statement_xml([Payment(with_details=False, bank_transaction_code="PMNT-ICDT-ESCT")])).statements[0].entries
+    assert entry.transaction_details == [] and entry.bank_transaction_code == "PMNT-ICDT-ESCT"
+
+
+def test_a_statement_covers_its_date_and_a_notification_has_no_period():
+    statement = parse_bytes(statement_xml(created=datetime(2026, 1, 5, 8, 0), statement_date=date(2026, 1, 4))).statements[0]
+    assert (statement.from_date, statement.to_date) == (date(2026, 1, 4), date(2026, 1, 4))
+    notification = parse_bytes(notification_xml()).statements[0]
+    assert (notification.from_date, notification.to_date) == (None, None)

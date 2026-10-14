@@ -32,7 +32,7 @@ CREATED_TEXT = "2026-10-10T12:00:00.000Z"
 
 @dataclass
 class Payment:
-    """One booked entry of a notification or statement, with its one transaction."""
+    """One booked entry of a notification or statement, with its one transaction (unless `with_details` is off)."""
 
     amount: str | Decimal = "120.00"
     credit_debit: CreditDebit = CreditDebit.CREDIT
@@ -42,6 +42,9 @@ class Payment:
     remittance_info: str | None = None
     additional_info: str | None = None
     message_id: str | None = None  # the pacs.008 that carried it (Refs/MsgId)
+    instruction_id: str | None = None
+    bank_transaction_code: str | None = None  # e.g. PMNT-RCDT-ESCT
+    with_details: bool = True  # False: the entry has no transaction details (NtryDtls), only its own data
     currency: str = "EUR"
 
 
@@ -50,13 +53,13 @@ def _entry(payment: Payment, booked: date) -> Entry:
     credit = payment.credit_debit == CreditDebit.CREDIT
     details = TransactionDetails(
         amount=amount, currency=payment.currency, credit_debit=payment.credit_debit,
-        end_to_end_id=payment.end_to_end_id, account_servicer_ref=payment.servicer_ref, message_id=payment.message_id,
-        remittance_info=payment.remittance_info,
+        end_to_end_id=payment.end_to_end_id, instruction_id=payment.instruction_id,
+        account_servicer_ref=payment.servicer_ref, message_id=payment.message_id, remittance_info=payment.remittance_info,
         debtor=payment.counterparty if credit else None, creditor=None if credit else payment.counterparty)
     return Entry(
         amount, payment.currency, payment.credit_debit, EntryStatus.BOOKED, booking_date=booked, value_date=booked,
-        account_servicer_ref=payment.servicer_ref, additional_info=payment.additional_info,
-        transaction_details=[details])
+        account_servicer_ref=payment.servicer_ref, bank_transaction_code=payment.bank_transaction_code,
+        additional_info=payment.additional_info, transaction_details=[details] if payment.with_details else [])
 
 
 def statement_xml(
@@ -65,7 +68,7 @@ def statement_xml(
     created: datetime = CREATED, opening: str | Decimal | None = None, closing: str | Decimal | None = None,
     balances: Sequence[Balance] | None = None, owner_name: str | None = "MultiCredit SpA",
     owner_bic: str | None = "UNCRITM1XXX", servicer_bic: str | None = None, page_number: int | None = None,
-    last_page: bool | None = None, currency: str = "EUR",
+    last_page: bool | None = None, currency: str = "EUR", statement_date: date | None = None,
 ) -> bytes:
     """A valid camt.053 (or camt.052 / camt.054 with `message_type`) of one account with one
     entry per payment. `account` is an IBAN (starting with two letters and two digits) or
@@ -73,8 +76,9 @@ def statement_xml(
     of a paginated statement has only one of them); `balances` gives them as they are. With
     none of the three, a camt.053 or camt.052 opens at 1000.00 and closes at what its
     payments make of it (a statement needs a balance); a camt.054 has none.
-    `page_number` and `last_page` paginate it."""
-    day = created.date()
+    `page_number` and `last_page` paginate it. The statement covers `statement_date` (the day it was
+    created by default), and so do its entries and balances."""
+    day = statement_date or created.date()
     if balances is None and opening is None and closing is None and message_type is not MessageType.CAMT_054:
         # A statement or report needs a balance: opening 1000.00, closing what the payments make of it.
         opening = Decimal("1000.00")
@@ -89,7 +93,9 @@ def statement_xml(
         message_type=message_type, message_id=message_id, creation_datetime=created, page_number=page_number,
         last_page=last_page,
         statements=[Statement(
-            id=statement_id or f"{message_id}-01", creation_datetime=created, from_date=day, to_date=day,
+            id=statement_id or f"{message_id}-01", creation_datetime=created,
+            from_date=None if message_type is MessageType.CAMT_054 else day,
+            to_date=None if message_type is MessageType.CAMT_054 else day,
             account_iban=account if is_iban else None, account_other_id=None if is_iban else account,
             account_currency=currency, account_owner=Party(name=owner_name, bic=owner_bic) if owner_name or owner_bic else None,
             servicer_bic=servicer_bic, balances=list(balances),
