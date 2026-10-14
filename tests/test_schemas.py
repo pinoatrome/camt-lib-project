@@ -1,6 +1,6 @@
 """Every camt message the library builds, and every fixture, against ISO 20022's schemas.
 
-The schemas in tests/xsd/ are the Cash Management message set of the ISO 20022
+The schemas in camt/xsd/ are the Cash Management message set of the ISO 20022
 catalogue, 2025/2026 edition: the newest version of each family the library handles.
 The library builds every message in that version, and the fixtures are in it too, so
 each is checked against its own schema. (The parsers read any version: their tests
@@ -8,7 +8,6 @@ cover older ones.)
 """
 from datetime import date, datetime, timezone
 from decimal import Decimal
-from functools import cache
 from pathlib import Path
 
 import pytest
@@ -26,11 +25,16 @@ from camt import (
     Statement,
     TransactionDetails,
     build_bytes,
+    schema_errors,
 )
+from camt.validation import NEWEST
 from camt._investigation import CaseAssignment
+from camt.camt004 import AccountReport, Camt004Response, build_return_account_bytes
+from camt.camt004 import Balance as AccountBalance
 from camt.camt003 import build_get_account_request_bytes
 from camt.camt005 import build_get_transaction_delta_request_bytes, build_get_transaction_request_bytes
 from camt.camt018 import build_get_business_day_request_bytes
+from camt.camt025 import ReceiptResult, build_receipt_bytes
 from camt.camt029 import RecallAnswer, ResolutionOfInvestigation, build_resolution_bytes
 from camt.camt046 import build_get_reservation_request_bytes
 from camt.camt048 import build_modify_reservation_request_bytes
@@ -39,32 +43,15 @@ from camt.camt050 import build_liquidity_transfer_bytes
 from camt.camt056 import PaymentCancellationRequest, RecalledPayment, build_cancellation_request_bytes
 
 TESTS = Path(__file__).parent
-SCHEMAS = TESTS / "xsd"
 FIXTURES = TESTS / "fixtures"
-
-# The newest version of each family in SCHEMAS: "camt.053" -> "camt.053.001.14".
-NEWEST = {path.stem[:8]: path.stem for path in SCHEMAS.glob("camt.*.xsd")}
 
 NOW = datetime(2026, 10, 12, 9, 30, tzinfo=timezone.utc)
 ALPHA = "DEAN-IT-0001-ALPHA"
 IBAN = "IT60X0542811101000000123456"
 
-@cache
-def schema(version: str) -> etree.XMLSchema:
-    return etree.XMLSchema(etree.parse(str(SCHEMAS / f"{version}.xsd")))
-
-
 def version(xml: bytes) -> str:
     """The message's version, from its namespace: "camt.053.001.14"."""
     return etree.QName(etree.fromstring(xml)).namespace.rsplit(":", 1)[1]
-
-
-def schema_errors(xml: bytes) -> list[str]:
-    """What the schema of `xml`'s own version finds wrong in it; empty when it's valid."""
-    checker = schema(version(xml))
-    if checker.validate(etree.fromstring(xml)):
-        return []
-    return [error.message for error in checker.error_log]
 
 
 def _statement_document(message_type: MessageType) -> Document:
@@ -111,6 +98,17 @@ def _statement_document(message_type: MessageType) -> Document:
 # Each message with every optional element the library can write.
 BUILT = {
     "camt.003": lambda: build_get_account_request_bytes(IBAN, "PSPQRY-0001", creation_datetime=NOW),
+    "camt.004": lambda: build_return_account_bytes(Camt004Response(
+        "DESP-RESP-0001", "PSPQRY-0001", "2026-10-12T09:30:00.000Z", account=AccountReport(
+            dean="DEAN-IT-0001-ALPHA", iban=IBAN, currency="EUR", status="ENABLED", psp_bic="UNCRITM1XXX",
+            psp_name="MultiCredit SpA", servicer_name="DESP", account_type="DESP-DCA",
+            balances=[AccountBalance("CLBD", 2850.10, "EUR", "2026-10-12"), AccountBalance("ITBD", -10.0, "EUR", "2026-10-12")],
+            hold_limit=3000.0, hold_limit_ccy="EUR"))),
+    "camt.004 error": lambda: build_return_account_bytes(Camt004Response(
+        "DESP-RESP-0002", "PSPQRY-0001", "2026-10-12T09:30:00.000Z", error_code="NFND", error_description="Not found"),
+        error_account_id="DEAN-UNKNOWN"),
+    "camt.004 operational error": lambda: build_return_account_bytes(Camt004Response(
+        "DESP-RESP-0003", "PSPQRY-0001", "2026-10-12T09:30:00.000Z", error_code="SYST", error_description="Down")),
     "camt.005": lambda: build_get_transaction_request_bytes(
         IBAN, "PSPQRY-0002", from_datetime=NOW, to_datetime=NOW, entry_status="BOOK", new_query_name="QRY-1",
         creation_datetime=NOW,
@@ -119,6 +117,8 @@ BUILT = {
     "camt.018": lambda: build_get_business_day_request_bytes(
         "DESP", "PSPQRY-0004", business_date=date(2026, 10, 12), creation_datetime=NOW,
     ),
+    "camt.025": lambda: build_receipt_bytes(ReceiptResult(
+        "DESP-RCPT-0001", "2026-10-12T09:30:00", "RJCT", "PSPLT-0001", reject_code="AM04", reject_desc="No funds")),
     "camt.029": lambda: build_resolution_bytes(ResolutionOfInvestigation(
         assignment=CaseAssignment("RES-0001", "BCITITMMXXX", "UNCRITM1XXX", NOW),
         status="RJCR", resolved_case_id="CASE-0001", resolved_case_creator_bic="UNCRITM1XXX",

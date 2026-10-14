@@ -7,7 +7,7 @@ def iso20022_namespace(message_family: str, variant: str = "001.02") -> str:
 
 
 # The version `camt.builder` writes camt.052, camt.053 and camt.054 in: the newest of the
-# ISO 20022 catalogue (2025/2026 edition), the one tests/xsd/ checks them against.
+# ISO 20022 catalogue (2025/2026 edition), the one `camt.validation` checks them against.
 STATEMENT_VARIANT = "001.14"
 
 

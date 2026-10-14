@@ -1,4 +1,4 @@
-"""Parse ISO 20022 camt.025 (Receipt) messages.
+"""Parse and build ISO 20022 camt.025 (Receipt) messages.
 
 camt.025 is the synchronous response to a camt.050 LiquidityCreditTransfer
 request (see `camt.camt050`) — settled, pending, or rejected — so, like that
@@ -7,16 +7,22 @@ request, it's parsed here directly rather than through `camt.parser`.
 A receipt is `Rct`: a `MsgHdr`, then `RctDtls` with the request it answers
 (`OrgnlMsgId/MsgId`) and how it was handled (`ReqHdlg`: the status code
 `Sts/Cd`, and for a rejection the reason `StsRsn/Rsn/Cd` with its `AddtlInf`).
-Parsing matches elements by local name, so any camt.025 version reads; the
-library's checks use .001.09, the newest.
+Parsing matches elements by local name, so any camt.025 version reads;
+`build_receipt_bytes` writes .001.09, the newest, which the library's checks use.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 
 from ._investigation import read_root
-from .exceptions import CamtParseError
+from lxml import etree
+
+from .builder import sub
+from .enums import iso20022_namespace
+from .exceptions import CamtError, CamtParseError
 from .parser import _child, _children, _path, _text
+
+VARIANT = "001.09"
 
 SETTLED = "STLD"
 PENDING = "PDNG"
@@ -64,3 +70,40 @@ def parse_camt025(xml_bytes: bytes) -> ReceiptResult:
         reject_code=_text(_path(reason, "Rsn", "Cd")) or _text(_path(reason, "Rsn", "Prtry")),
         reject_desc=" ".join(line for line in lines if line) or _text(_child(handling, "Desc")),
     )
+
+
+def build_receipt_element(receipt: ReceiptResult, *, original_message_name_id: str = "camt.050.001.07") -> etree._Element:
+    """The `<Document>` tree of a camt.025 Receipt, the inverse of `parse_camt025`: the
+    request it answers (`original_msg_id`, a message `original_message_name_id`), how it
+    was handled (`status`) and, for a rejection, the reason (`reject_code`, `reject_desc`).
+
+    `original_e2e_id` can't be written: ISO 20022 puts it in the long business id
+    (`OrgnlPmtId/LngBizId`), which also needs the settlement amount, date and agents.
+    Raises `CamtError` if it is set."""
+    if receipt.original_e2e_id:
+        raise CamtError("A camt.025 with an EndToEndId needs its long business id (settlement amount, date and "
+                        "agents), which isn't built.")
+    root = etree.Element("Document", nsmap={None: iso20022_namespace("camt.025", VARIANT)})
+    message = sub(root, "Rct")
+    header = sub(message, "MsgHdr")
+    sub(header, "MsgId", receipt.receipt_msg_id)
+    sub(header, "CreDtTm", receipt.created_at)
+    details = sub(message, "RctDtls")
+    original = sub(details, "OrgnlMsgId")
+    sub(original, "MsgId", receipt.original_msg_id)
+    sub(original, "MsgNmId", original_message_name_id)
+    handling = sub(details, "ReqHdlg")
+    sub(sub(handling, "Sts"), "Cd", receipt.status)
+    if receipt.reject_code or receipt.reject_desc:
+        reason = sub(handling, "StsRsn")
+        if receipt.reject_code:
+            sub(sub(reason, "Rsn"), "Cd", receipt.reject_code)
+        if receipt.reject_desc:
+            sub(reason, "AddtlInf", receipt.reject_desc)
+    return root
+
+
+def build_receipt_bytes(receipt: ReceiptResult, *, pretty_print: bool = True, **options) -> bytes:
+    """A camt.025 Receipt as XML bytes; `options` as `build_receipt_element`."""
+    return etree.tostring(
+        build_receipt_element(receipt, **options), xml_declaration=True, encoding="UTF-8", pretty_print=pretty_print)

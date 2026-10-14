@@ -1,4 +1,4 @@
-"""Parse ISO 20022 camt.004 (ReturnAccount) messages.
+"""Parse and build ISO 20022 camt.004 (ReturnAccount) messages.
 
 camt.004 usually arrives as the response half of the camt.003 GetAccount
 request/response pair (see `camt.camt003`), but the same message shape is also
@@ -20,8 +20,8 @@ ISO's account has no element for two things DESP tells: the account's IBAN
 next to its DEAN, read from the proxy (`Acct/Prxy` with type `IBAN`), and its
 status (ENABLED, BLOCKED, ...), read from the supplementary data
 (`SplmtryData/Envlp/AcctSts`, in any namespace). Parsing matches elements by
-local name, so any camt.004 version reads; the library's checks use .001.10,
-the newest.
+local name, so any camt.004 version reads; `build_return_account_bytes` writes
+.001.10, the newest, which the library's checks use.
 """
 from __future__ import annotations
 
@@ -31,8 +31,12 @@ from decimal import Decimal
 from lxml import etree
 
 from ._investigation import read_root
+from .builder import sub
+from .enums import iso20022_namespace
 from .exceptions import CamtParseError
 from .parser import _child, _children, _path, _text
+
+VARIANT = "001.10"
 
 # The supplementary data element carrying the account's status, and the proxy
 # type naming its IBAN.
@@ -200,3 +204,113 @@ def parse_camt004(xml_bytes: bytes) -> Camt004Response:
             hold_limit_ccy=(limit_amount.get("Ccy") or currency) if limit_amount is not None else None,
         ),
     )
+
+
+# ── Building ─────────────────────────────────────────────────────────────────
+
+SUPPLEMENTARY_NAMESPACE = "urn:desp:supplementary"
+ACCOUNT_PLACE = "/Document/RtrAcct/RptOrErr/AcctRpt/AcctOrErr/Acct"
+
+
+def _amount(value: float) -> str:
+    return f"{abs(value):.2f}"
+
+
+def build_return_account_element(
+    response: Camt004Response,
+    *,
+    account_scheme: str | None = "DEAN",
+    error_account_id: str | None = None,
+    original_message_name_id: str = "camt.003.001.08",
+) -> etree._Element:
+    """The `<Document>` tree of a camt.004 ReturnAccount message, the inverse of `parse_camt004`.
+
+    With `response.account`, an account report: the account's DEAN (`Othr/Id`, its scheme
+    named `account_scheme`) or else its IBAN, and its data; the IBAN next to the DEAN in
+    the proxy, the status in the supplementary data (see the module docstring). Without
+    one, an error: about the account `error_account_id` (a business error) or, if there
+    is none, operational. `original_msg_id` names the camt.003 it answers
+    (`original_message_name_id`); none, an unsolicited alert.
+    """
+    root = etree.Element("Document", nsmap={None: iso20022_namespace("camt.004", VARIANT)})
+    message = sub(root, "RtrAcct")
+    header = sub(message, "MsgHdr")
+    sub(header, "MsgId", response.response_msg_id)
+    sub(header, "CreDtTm", response.created_at)
+    if response.original_msg_id:
+        query = sub(header, "OrgnlBizQry")
+        sub(query, "MsgId", response.original_msg_id)
+        sub(query, "MsgNmId", original_message_name_id)
+
+    report_or_error = sub(message, "RptOrErr")
+    account = response.account
+    if account is None and error_account_id is None:
+        operational = sub(report_or_error, "OprlErr")
+        sub(sub(operational, "Err"), "Prtry", response.error_code)
+        if response.error_description:
+            sub(operational, "Desc", response.error_description)
+        return root
+
+    report = sub(report_or_error, "AcctRpt")
+    account_id = sub(report, "AcctId")
+    dean = account.dean if account else error_account_id
+    if dean:
+        other = sub(account_id, "Othr")
+        sub(other, "Id", dean)
+        if account_scheme:
+            sub(sub(other, "SchmeNm"), "Prtry", account_scheme)
+    else:
+        sub(account_id, "IBAN", account.iban)
+
+    outcome = sub(report, "AcctOrErr")
+    if account is None:
+        business = sub(outcome, "BizErr")
+        sub(sub(business, "Err"), "Prtry", response.error_code)
+        if response.error_description:
+            sub(business, "Desc", response.error_description)
+        return root
+
+    data = sub(outcome, "Acct")
+    if account.account_type:
+        sub(sub(data, "Tp"), "Prtry", account.account_type)
+    if account.currency:
+        sub(data, "Ccy", account.currency)
+    if account.iban and dean:
+        proxy = sub(data, "Prxy")
+        sub(sub(proxy, "Tp"), "Prtry", IBAN_PROXY)
+        sub(proxy, "Id", account.iban)
+    if account.hold_limit is not None:
+        limit = sub(data, "CurMulLmt")
+        wrapper = sub(sub(limit, "Amt"), "AmtWthCcy", _amount(account.hold_limit))
+        wrapper.set("Ccy", account.hold_limit_ccy or account.currency or "EUR")
+        sub(limit, "CdtDbtInd", "CRDT")
+    if account.psp_name or account.psp_bic:
+        owner = sub(data, "Ownr")
+        if account.psp_name:
+            sub(owner, "Nm", account.psp_name)
+        if account.psp_bic:
+            sub(sub(sub(owner, "Id"), "OrgId"), "AnyBIC", account.psp_bic)
+    if account.servicer_name:
+        sub(sub(sub(data, "Svcr"), "FinInstnId"), "Nm", account.servicer_name)
+    for balance in account.balances:
+        entry = sub(data, "MulBal")
+        sub(entry, "Amt", _amount(balance.amount))
+        sub(entry, "CdtDbtInd", "DBIT" if balance.amount < 0 else "CRDT")
+        if balance.type_code:
+            sub(sub(entry, "Tp"), "Cd", balance.type_code)
+        if balance.date:
+            sub(sub(entry, "ValDt"), "Dt" if len(balance.date) == 10 else "DtTm", balance.date)
+
+    if account.status:
+        supplementary = sub(message, "SplmtryData")
+        sub(supplementary, "PlcAndNm", ACCOUNT_PLACE)
+        status = etree.SubElement(sub(supplementary, "Envlp"), f"{{{SUPPLEMENTARY_NAMESPACE}}}{ACCOUNT_STATUS}")
+        status.text = account.status
+    return root
+
+
+def build_return_account_bytes(response: Camt004Response, *, pretty_print: bool = True, **options) -> bytes:
+    """A camt.004 ReturnAccount message as XML bytes; `options` as `build_return_account_element`."""
+    return etree.tostring(
+        build_return_account_element(response, **options), xml_declaration=True, encoding="UTF-8",
+        pretty_print=pretty_print)

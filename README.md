@@ -154,6 +154,11 @@ entries — so the generic `parse_*`/`build_*` functions and the `Document`,
   message's supplementary data (`SplmtryData/Envlp/AcctSts`, in any namespace,
   `camt.camt004.ACCOUNT_STATUS`).
 
+  `build_return_account_bytes(response)` writes one (at .001.10), the inverse
+  of `parse_camt004`: an account report, an error about the account named by
+  `error_account_id`, or an operational error; it is what the mock of a settlement
+  system, or a test, answers a camt.003 with.
+
 ### Transaction query pair (camt.005 / camt.006)
 
 - **camt.005 — GetTransaction** (built at .001.11, the newest). An outbound
@@ -261,6 +266,8 @@ and EndToEndId; they're built (with validation raising `CamtError`) and parsed
   (`STLD`), pending (`PDNG`) or rejected (`RJCT`), with the reason code
   (`StsRsn/Rsn/Cd`) and description when rejected. The end-to-end id is read
   only when the receipt carries the long payment identification.
+  `build_receipt_bytes(receipt)` writes one (at .001.09), the inverse of
+  `parse_camt025`, without that identification.
 
 ## Scope
 
@@ -268,6 +275,59 @@ This library covers the fields commonly needed for bank-statement ingestion
 and reconciliation (account identification, balances, entries, and entry
 transaction details/remittance info). It does not implement the full CAMT XSD
 (e.g. batched entry summaries, charges records, tax details).
+
+## Validation
+
+`validate(xml)` checks a document against ISO 20022's schemas, which ship in the
+package (`camt/xsd/`), and returns it, or raises `CamtValidationError` whose `errors`
+are the schema's findings; `schema_errors(xml)` returns the findings as a list (empty
+when valid) instead of raising.
+
+```python
+from camt import CamtValidationError, validate
+
+try:
+    validate(xml)
+except CamtValidationError as exc:
+    print(exc.errors)
+```
+
+The schemas are the Cash Management message set of the 2025/2026 catalogue, the
+newest version of each family the library handles, and a document is checked against
+the schema of its own version. The parsers read older versions too, but those have no
+schema here: they are one error (`no schema for camt.054.001.08: the library checks
+camt.054.001.14`), as is a document that isn't XML or isn't a camt message.
+
+## Valid documents for tests
+
+`camt.testing` makes complete camt documents for the tests of a system that reads or
+sends them, so they don't depend on hand-written XML files nobody has checked. Each
+function builds the document with the library and runs it through `validate` before
+returning it; everything has a default, and a test passes only what it is about:
+
+```python
+from camt import CreditDebit, MessageType, Party
+from camt.testing import (
+    Payment,              # one entry of a notification or statement
+    notification_xml,     # camt.054: one payment on an account
+    statement_xml,        # camt.053 (or camt.052 / camt.054 with message_type): a statement of payments
+    account_report_xml,   # camt.004: an account's status, balance and holding limit (or an alert)
+    account_error_xml,    # camt.004: a business error about an account (NFND by default)
+    receipt_xml,          # camt.025: the receipt of a camt.050 (settled, pending or rejected)
+)
+
+credit = notification_xml(
+    Payment("120.00", CreditDebit.CREDIT, "E2E-0101", "DESP-TX-0101",
+            counterparty=Party(name="Payer", other_id="DEAN-IT-0009-OMEGA"), remittance_info="Order 2026-1006"),
+    account="DEAN-IT-0001-ALPHA", message_id="DESP-NTF-0001")
+eod = statement_xml([Payment("120.00"), Payment("45.50", CreditDebit.DEBIT, "E2E-0102", "DESP-TX-0102")],
+                    opening="1000.00", closing="1074.50", page_number=1, last_page=True)
+account = account_report_xml("DEAN-IT-0001-ALPHA", iban="IT60X0542811101000000123456", status="BLOCKED")
+refusal = receipt_xml(original_message_id="PSPLT-0001", status="RJCT", reject_code="AM04")
+```
+
+An account is an IBAN (`IT60X0542811101000000123456`) or another id such as a DEAN
+(`DEAN-IT-0001-ALPHA`). To check what a system under test *sends*, pass it to `validate`.
 
 ## Tests
 
@@ -277,9 +337,10 @@ pytest tests
 ```
 
 `tests/test_schemas.py` checks every message the library builds, and every
-fixture in `tests/fixtures/`, against the ISO 20022 schemas in `tests/xsd/`: the
+fixture in `tests/fixtures/`, against the ISO 20022 schemas in `camt/xsd/`: the
 Cash Management message set of the 2025/2026 catalogue, the newest version of each
 family the library handles. The library builds every message in that version and
 the fixtures are in it too, so each is checked against its own schema; the tests
 fail if a message or a fixture falls behind it. (The parsers read any version,
 and their own tests cover older ones.)
+`tests/test_testing.py` does the same for the documents `camt.testing` makes.

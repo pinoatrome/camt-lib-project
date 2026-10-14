@@ -77,3 +77,29 @@ def test_parse_camt025_defaults_status_to_unkn_when_code_missing():
     xml = SETTLED_XML.replace(b"<Sts>\n          <Cd>STLD</Cd>\n        </Sts>", b"")
 
     assert parse_camt025(xml).status == "UNKN"
+
+
+# ── Building ─────────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("xml", [SETTLED_XML, REJECTED_XML])
+def test_a_built_receipt_parses_back_to_the_same_and_is_valid(xml):
+    from camt import schema_errors
+    from camt.camt025 import build_receipt_bytes
+
+    receipt = parse_camt025(xml)
+
+    built = build_receipt_bytes(receipt)
+
+    assert schema_errors(built) == []
+    assert parse_camt025(built) == receipt
+
+
+def test_a_receipt_with_an_end_to_end_id_cannot_be_built():
+    from camt import CamtError
+    from camt.camt025 import build_receipt_bytes
+
+    receipt = parse_camt025(SETTLED_XML)
+    receipt.original_e2e_id = "E2E-1"
+
+    with pytest.raises(CamtError, match="long business id"):
+        build_receipt_bytes(receipt)

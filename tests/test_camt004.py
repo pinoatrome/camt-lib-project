@@ -163,3 +163,44 @@ def test_account_report_remaining_holding_capacity_needs_limit_and_closing_balan
     assert account.closing_balance is None
     assert account.remaining_holding_capacity is None
 
+
+
+# ── Building ─────────────────────────────────────────────────────────────────
+
+ERROR_FIXTURES = ["camt004_success_sample.xml", "camt004_error_sample.xml"]
+
+
+@pytest.mark.parametrize("name", ERROR_FIXTURES)
+def test_a_built_response_parses_back_to_the_same_and_is_valid(name):
+    from camt import schema_errors
+    from camt.camt004 import build_return_account_bytes
+
+    response = parse_camt004((FIXTURES / name).read_bytes())
+    options = {"error_account_id": "DEAN-IT-0001-ALPHA"} if response.account is None and response.error_code != "SYST" else {}
+
+    built = build_return_account_bytes(response, **options)
+
+    assert schema_errors(built) == []
+    assert parse_camt004(built) == response
+
+
+def test_an_unsolicited_alert_is_built_without_the_original_query():
+    from camt.camt004 import build_return_account_bytes
+
+    response = parse_camt004(SUCCESS)
+    response.original_msg_id = None
+
+    assert b"OrgnlBizQry" not in build_return_account_bytes(response)
+
+
+def test_the_account_is_identified_by_its_iban_when_it_has_no_dean():
+    from camt import schema_errors
+    from camt.camt004 import build_return_account_bytes
+
+    response = parse_camt004(SUCCESS)
+    response.account.dean = None
+
+    built = build_return_account_bytes(response)
+
+    assert schema_errors(built) == []
+    assert parse_camt004(built).account.iban == response.account.iban
