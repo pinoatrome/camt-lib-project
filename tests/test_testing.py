@@ -16,12 +16,12 @@ from camt.testing import (
     statement_xml,
 )
 
-PAYER = Party(name="Payer", other_id="DEAN-IT-0009-OMEGA")
+PAYER = Party(name="Payer", other_id="EU2700000000000009")
 
 
 @pytest.mark.parametrize("make", [
     lambda: notification_xml(),
-    lambda: notification_xml(Payment("45.50", CreditDebit.DEBIT, counterparty=Party(other_id="DEAN-IT-0008-SIGMA"))),
+    lambda: notification_xml(Payment("45.50", CreditDebit.DEBIT, counterparty=Party(other_id="EU5400000000000008"))),
     lambda: notification_xml(Payment(counterparty=PAYER, remittance_info="Order 7", additional_info="Received", message_id="PSP-1")),
     lambda: notification_xml(account="IT60X0542811101000000123456"),
     lambda: statement_xml(),
@@ -43,13 +43,13 @@ def test_every_sample_is_valid_against_the_schema(make):
 
 def test_a_notification_is_what_was_asked():
     document = parse_bytes(notification_xml(
-        Payment("120.00", CreditDebit.CREDIT, "E2E-1", "TX-1", PAYER, "Order 7"), account="DEAN-IT-0001-ALPHA",
+        Payment("120.00", CreditDebit.CREDIT, "E2E-1", "TX-1", PAYER, "Order 7"), account="EU4900000000000001",
         message_id="NTF-9", created=datetime(2026, 10, 6, 10, 12, 31)))
     [statement] = document.statements
     [entry] = statement.entries
     [details] = entry.transaction_details
     assert (document.message_type, document.message_id, statement.account_other_id) == (
-        MessageType.CAMT_054, "NTF-9", "DEAN-IT-0001-ALPHA")
+        MessageType.CAMT_054, "NTF-9", "EU4900000000000001")
     assert (entry.amount, entry.credit_debit, entry.account_servicer_ref) == (Decimal("120.00"), CreditDebit.CREDIT, "TX-1")
     assert (details.end_to_end_id, details.debtor, details.remittance_info) == ("E2E-1", PAYER, "Order 7")
 
@@ -77,11 +77,11 @@ def test_an_iban_account_is_written_as_an_iban():
 
 def test_an_account_report_is_what_was_asked():
     response = parse_camt004(account_report_xml(
-        "DEAN-IT-0002-BETA", iban="IT60X0542811101000000123456", status="SUSPENDED", balance="10.50",
+        "EU2200000000000002", iban="IT60X0542811101000000123456", status="SUSPENDED", balance="10.50",
         hold_limit="3000.00", original_message_id="PSPQRY-9", message_id="RESP-9"))
     account = response.account
     assert (response.response_msg_id, response.original_msg_id) == ("RESP-9", "PSPQRY-9")
-    assert (account.dean, account.iban, account.status) == ("DEAN-IT-0002-BETA", "IT60X0542811101000000123456", "SUSPENDED")
+    assert (account.dean, account.iban, account.status) == ("EU2200000000000002", "IT60X0542811101000000123456", "SUSPENDED")
     assert (account.closing_balance.amount, account.hold_limit) == (10.5, 3000.0)
 
 
@@ -90,8 +90,8 @@ def test_an_alert_has_no_original_query():
 
 
 def test_an_account_error_carries_its_code():
-    response = parse_camt004(account_error_xml("DEAN-X", code="NFND"))
-    assert response.account is None and response.error_code == "NFND" and "DEAN-X" in response.error_description
+    response = parse_camt004(account_error_xml("EU1500000000777777", code="NFND"))
+    assert response.account is None and response.error_code == "NFND" and "EU1500000000777777" in response.error_description
 
 
 def test_a_receipt_is_what_was_asked():

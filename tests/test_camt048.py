@@ -36,12 +36,12 @@ def test_build_modify_reservation_request_encodes_iban_account():
 
 def test_build_modify_reservation_request_encodes_proprietary_account():
     xml = build_modify_reservation_request_bytes(
-        "DEAN-IT-0001-ALPHA", "MMR", 75000.0, id_type="DEAN", msg_id="MOD-1"
+        "EU4900000000000001", "MMR", 75000.0, id_type="DEAN", msg_id="MOD-1"
     )
     root = etree.fromstring(xml)
     othr_id = root.find("n:ModfyRsvatn/n:RsvatnId/n:Cur/n:AcctId/n:Othr/n:Id", namespaces=_NS)
     scheme = root.find("n:ModfyRsvatn/n:RsvatnId/n:Cur/n:AcctId/n:Othr/n:SchmeNm/n:Prtry", namespaces=_NS)
-    assert othr_id.text == "DEAN-IT-0001-ALPHA"
+    assert othr_id.text == "EU4900000000000001"
     assert scheme.text == "DEAN"
 
 

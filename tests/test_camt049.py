@@ -32,12 +32,12 @@ def test_build_delete_reservation_request_encodes_iban_account():
 
 def test_build_delete_reservation_request_encodes_proprietary_account():
     xml = build_delete_reservation_request_bytes(
-        "DEAN-IT-0001-ALPHA", "MMR", id_type="DEAN", msg_id="DEL-1"
+        "EU4900000000000001", "MMR", id_type="DEAN", msg_id="DEL-1"
     )
     root = etree.fromstring(xml)
     othr_id = root.find("n:DelRsvatn/n:CurRsvatn/n:AcctId/n:Othr/n:Id", namespaces=_NS)
     scheme = root.find("n:DelRsvatn/n:CurRsvatn/n:AcctId/n:Othr/n:SchmeNm/n:Prtry", namespaces=_NS)
-    assert othr_id.text == "DEAN-IT-0001-ALPHA"
+    assert othr_id.text == "EU4900000000000001"
     assert scheme.text == "DEAN"
 
 

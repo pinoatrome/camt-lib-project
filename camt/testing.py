@@ -23,6 +23,7 @@ from .camt004 import Balance as AccountBalance
 from .builder import build_bytes
 from .camt025 import REJECTED, SETTLED, ReceiptResult, build_receipt_bytes
 from .enums import CreditDebit, EntryStatus, MessageType
+from .identifiers import is_iban
 from .models import Balance, Document, Entry, Party, Statement, TransactionDetails
 from .validation import validate
 
@@ -64,15 +65,15 @@ def _entry(payment: Payment, booked: date) -> Entry:
 
 def statement_xml(
     payments: Sequence[Payment] = (), *, message_type: MessageType = MessageType.CAMT_053,
-    account: str = "DEAN-IT-0001-ALPHA", message_id: str = "TEST-STMT-0001", statement_id: str | None = None,
+    account: str = "EU4900000000000001", message_id: str = "TEST-STMT-0001", statement_id: str | None = None,
     created: datetime = CREATED, opening: str | Decimal | None = None, closing: str | Decimal | None = None,
     balances: Sequence[Balance] | None = None, owner_name: str | None = "MultiCredit SpA",
     owner_bic: str | None = "UNCRITM1XXX", servicer_bic: str | None = None, page_number: int | None = None,
     last_page: bool | None = None, currency: str = "EUR", statement_date: date | None = None,
 ) -> bytes:
     """A valid camt.053 (or camt.052 / camt.054 with `message_type`) of one account with one
-    entry per payment. `account` is an IBAN (starting with two letters and two digits) or
-    another id, e.g. a DEAN. `opening` and `closing` add the OPBD and CLBD balances (a page
+    entry per payment. `account` is an IBAN (starting with two letters and two digits, not a DEAN) or
+    another id, e.g. a DEAN (`EU` and 16 digits). `opening` and `closing` add the OPBD and CLBD balances (a page
     of a paginated statement has only one of them); `balances` gives them as they are. With
     none of the three, a camt.053 or camt.052 opens at 1000.00 and closes at what its
     payments make of it (a statement needs a balance); a camt.054 has none.
@@ -88,7 +89,7 @@ def statement_xml(
     if balances is None:
         balances = [Balance(code, Decimal(value), currency, CreditDebit.CREDIT, day)
                     for code, value in (("OPBD", opening), ("CLBD", closing)) if value is not None]
-    is_iban = account[:2].isalpha() and account[2:4].isdigit()
+    iban = is_iban(account)
     return validate(build_bytes(Document(
         message_type=message_type, message_id=message_id, creation_datetime=created, page_number=page_number,
         last_page=last_page,
@@ -96,7 +97,7 @@ def statement_xml(
             id=statement_id or f"{message_id}-01", creation_datetime=created,
             from_date=None if message_type is MessageType.CAMT_054 else day,
             to_date=None if message_type is MessageType.CAMT_054 else day,
-            account_iban=account if is_iban else None, account_other_id=None if is_iban else account,
+            account_iban=account if iban else None, account_other_id=None if iban else account,
             account_currency=currency, account_owner=Party(name=owner_name, bic=owner_bic) if owner_name or owner_bic else None,
             servicer_bic=servicer_bic, balances=list(balances),
             entries=[_entry(payment, day) for payment in payments])])))
@@ -109,7 +110,7 @@ def notification_xml(payment: Payment | None = None, *, message_id: str = "TEST-
 
 
 def account_report_xml(
-    dean: str = "DEAN-IT-0001-ALPHA", *, iban: str | None = None, status: str | None = "ENABLED",
+    dean: str = "EU4900000000000001", *, iban: str | None = None, status: str | None = "ENABLED",
     balance: str | Decimal = "2850.10", hold_limit: str | Decimal | None = "3000.00", currency: str = "EUR",
     original_message_id: str | None = "TEST-QRY-0001", message_id: str = "TEST-RESP-0001",
     created: str = CREATED_TEXT, balance_date: str = "2026-10-10", account_type: str = "DESP-DCA",
@@ -130,7 +131,7 @@ def account_report_xml(
 
 
 def account_error_xml(
-    dean: str = "DEAN-UNKNOWN", *, code: str = "NFND", description: str | None = None,
+    dean: str = "EU5300000000999999", *, code: str = "NFND", description: str | None = None,
     original_message_id: str | None = "TEST-QRY-0001", message_id: str = "TEST-RESP-0001", created: str = CREATED_TEXT,
 ) -> bytes:
     """A valid camt.004 reporting a business error (default NFND, not found) about the account `dean`."""

@@ -24,7 +24,7 @@ def test_parse_camt004_success_response():
 
     account = result.account
     assert account is not None
-    assert account.dean == "DEAN-IT-0001-ALPHA"
+    assert account.dean == "EU4900000000000001"
     assert account.iban == "IT60X0542811101000000123456"
     assert account.currency == "EUR"
     assert account.status == "ENABLED"
@@ -176,7 +176,7 @@ def test_a_built_response_parses_back_to_the_same_and_is_valid(name):
     from camt.camt004 import build_return_account_bytes
 
     response = parse_camt004((FIXTURES / name).read_bytes())
-    options = {"error_account_id": "DEAN-IT-0001-ALPHA"} if response.account is None and response.error_code != "SYST" else {}
+    options = {"error_account_id": "EU4900000000000001"} if response.account is None and response.error_code != "SYST" else {}
 
     built = build_return_account_bytes(response, **options)
 

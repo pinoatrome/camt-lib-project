@@ -38,14 +38,14 @@ def test_build_get_transaction_request_carries_msg_id_and_iban():
 
 def test_build_get_transaction_request_encodes_proprietary_account_id():
     xml = build_get_transaction_request_bytes(
-        "DEAN-IT-0001-ALPHA", "MSGID-1", id_type="DEAN"
+        "EU4900000000000001", "MSGID-1", id_type="DEAN"
     )
     root = etree.fromstring(xml)
 
     othr_id = root.find(".//n:AcctNtrySch/n:AcctId/n:EQ/n:Othr/n:Id", namespaces=_NS)
     scheme = root.find(".//n:AcctNtrySch/n:AcctId/n:EQ/n:Othr/n:SchmeNm/n:Prtry", namespaces=_NS)
 
-    assert othr_id.text == "DEAN-IT-0001-ALPHA"
+    assert othr_id.text == "EU4900000000000001"
     assert scheme.text == "DEAN"
 
 
