@@ -46,7 +46,7 @@ TESTS = Path(__file__).parent
 FIXTURES = TESTS / "fixtures"
 
 NOW = datetime(2026, 10, 12, 9, 30, tzinfo=timezone.utc)
-ALPHA = "DEAN-IT-0001-ALPHA"
+ALPHA = "EU4900000000000001"
 IBAN = "IT60X0542811101000000123456"
 
 def version(xml: bytes) -> str:
@@ -56,7 +56,7 @@ def version(xml: bytes) -> str:
 
 def _statement_document(message_type: MessageType) -> Document:
     """A statement, report or notification with every element the builder can write."""
-    debtor = Party(name="Bruno Bianchi", other_id="DEAN-IT-0002-BETA", bic="BCITITMMXXX")
+    debtor = Party(name="Bruno Bianchi", other_id="EU2200000000000002", bic="BCITITMMXXX")
     creditor = Party(name="Alice Rossi", iban=IBAN)
     details = TransactionDetails(
         amount=Decimal("80.00"), currency="EUR", credit_debit=CreditDebit.CREDIT, end_to_end_id="E2E-0001",
@@ -100,13 +100,13 @@ BUILT = {
     "camt.003": lambda: build_get_account_request_bytes(IBAN, "PSPQRY-0001", creation_datetime=NOW),
     "camt.004": lambda: build_return_account_bytes(Camt004Response(
         "DESP-RESP-0001", "PSPQRY-0001", "2026-10-12T09:30:00.000Z", account=AccountReport(
-            dean="DEAN-IT-0001-ALPHA", iban=IBAN, currency="EUR", status="ENABLED", psp_bic="UNCRITM1XXX",
+            dean="EU4900000000000001", iban=IBAN, currency="EUR", status="ENABLED", psp_bic="UNCRITM1XXX",
             psp_name="MultiCredit SpA", servicer_name="DESP", account_type="DESP-DCA",
             balances=[AccountBalance("CLBD", 2850.10, "EUR", "2026-10-12"), AccountBalance("ITBD", -10.0, "EUR", "2026-10-12")],
             hold_limit=3000.0, hold_limit_ccy="EUR"))),
     "camt.004 error": lambda: build_return_account_bytes(Camt004Response(
         "DESP-RESP-0002", "PSPQRY-0001", "2026-10-12T09:30:00.000Z", error_code="NFND", error_description="Not found"),
-        error_account_id="DEAN-UNKNOWN"),
+        error_account_id="EU5300000000999999"),
     "camt.004 operational error": lambda: build_return_account_bytes(Camt004Response(
         "DESP-RESP-0003", "PSPQRY-0001", "2026-10-12T09:30:00.000Z", error_code="SYST", error_description="Down")),
     "camt.005": lambda: build_get_transaction_request_bytes(

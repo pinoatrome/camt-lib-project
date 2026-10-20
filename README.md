@@ -318,16 +318,17 @@ from camt.testing import (
 
 credit = notification_xml(
     Payment("120.00", CreditDebit.CREDIT, "E2E-0101", "DESP-TX-0101",
-            counterparty=Party(name="Payer", other_id="DEAN-IT-0009-OMEGA"), remittance_info="Order 2026-1006"),
-    account="DEAN-IT-0001-ALPHA", message_id="DESP-NTF-0001")
+            counterparty=Party(name="Payer", other_id="EU2700000000000009"), remittance_info="Order 2026-1006"),
+    account="EU4900000000000001", message_id="DESP-NTF-0001")
 eod = statement_xml([Payment("120.00"), Payment("45.50", CreditDebit.DEBIT, "E2E-0102", "DESP-TX-0102")],
                     opening="1000.00", closing="1074.50", page_number=1, last_page=True)
-account = account_report_xml("DEAN-IT-0001-ALPHA", iban="IT60X0542811101000000123456", status="BLOCKED")
+account = account_report_xml("EU4900000000000001", iban="IT60X0542811101000000123456", status="BLOCKED")
 refusal = receipt_xml(original_message_id="PSPLT-0001", status="RJCT", reject_code="AM04")
 ```
 
 An account is an IBAN (`IT60X0542811101000000123456`) or another id such as a DEAN
-(`DEAN-IT-0001-ALPHA`). To check what a system under test *sends*, pass it to `validate`.
+(`EU4900000000000001`: `EU`, two check digits and the 14-digit BEAN, rulebook v0.9 FUR.07; shaped
+like an IBAN, it's never written as one, see `camt.identifiers`). To check what a system under test *sends*, pass it to `validate`.
 
 ## Tests
 

@@ -21,19 +21,16 @@ from lxml import etree
 from .builder import sub
 from .enums import iso20022_namespace
 from .exceptions import CamtError
+from .identifiers import is_iban
 
 VARIANT = "001.07"
 _NAMESPACE = iso20022_namespace("camt.050", VARIANT)
 _BIC = re.compile(r"^[A-Z0-9]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$")
 
 
-def _is_iban(account_id: str) -> bool:
-    return len(account_id) <= 34 and account_id[:2].isalpha() and account_id[2:4].isdigit()
-
-
 def _account_element(parent: etree._Element, tag: str, account_id: str) -> None:
     id_elem = sub(sub(parent, tag), "Id")
-    if _is_iban(account_id):
+    if is_iban(account_id):
         sub(id_elem, "IBAN", account_id)
     else:
         sub(sub(id_elem, "Othr"), "Id", account_id)

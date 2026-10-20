@@ -12,7 +12,7 @@
       <Acct>
         <Id>
           <Othr>
-            <Id>DEAN-IT-0001-ALPHA</Id>
+            <Id>EU4900000000000001</Id>
           </Othr>
         </Id>
       </Acct>
@@ -39,7 +39,7 @@
               <CdtrAcct>
                 <Id>
                   <Othr>
-                    <Id>DEAN-IT-0003-GAMMA</Id>
+                    <Id>EU9200000000000003</Id>
                   </Othr>
                 </Id>
               </CdtrAcct>
